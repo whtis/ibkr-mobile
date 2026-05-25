@@ -1,0 +1,30 @@
+services:
+  ibgateway:
+    image: ghcr.io/gnzsnz/ib-gateway:stable
+    container_name: ibkr-gateway
+    restart: unless-stopped
+    environment:
+      TWS_USERID: ${TWS_USERID}
+      TWS_PASSWORD: ${TWS_PASSWORD}
+      TRADING_MODE: paper
+      READ_ONLY_API: "yes"
+      TWS_ACCEPT_INCOMING: accept
+      BYPASS_WARNING: "yes"
+      # Auto-take-over when another session (Mobile/Web) was active
+      EXISTING_SESSION_DETECTED_ACTION: primary
+      # Don't ask user when API client requests write access (we still have READ_ONLY_API=yes guard)
+      ALLOW_BLIND_TRADING: "yes"
+      TWOFA_TIMEOUT_ACTION: restart
+      AUTO_RESTART_TIME: "11:59 PM"
+      TIME_ZONE: ${TIME_ZONE:-Asia/Shanghai}
+      VNC_SERVER_PASSWORD: ${VNC_SERVER_PASSWORD:-changeme}
+    ports:
+      # host 4002 -> container 4004 (socat proxy -> Gateway 127.0.0.1:4002, paper)
+      - "127.0.0.1:4002:4004"
+      - "127.0.0.1:5900:5900"
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 4004 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s

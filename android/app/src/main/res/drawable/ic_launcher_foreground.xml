@@ -1,0 +1,60 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+    <!--
+      C-pulse mark: origin dot → flat → red rise → green drop through baseline →
+      blue recovery → flat. Content is scaled 0.82 around (256,256) to stay inside
+      the 66dp adaptive-icon safe zone.
+    -->
+    <group
+        android:pivotX="256"
+        android:pivotY="256"
+        android:scaleX="0.82"
+        android:scaleY="0.82">
+
+        <!-- Origin dot (filled circle as two-arc path) -->
+        <path
+            android:fillColor="#3B82F6"
+            android:pathData="M 56,256 a 22,22 0 1,1 44,0 a 22,22 0 1,1 -44,0 Z"/>
+
+        <!-- Flat segment (blue) -->
+        <path
+            android:strokeColor="#3B82F6"
+            android:strokeWidth="30"
+            android:strokeLineCap="round"
+            android:pathData="M 78,256 L 184,256"/>
+
+        <!-- Up move (red) -->
+        <path
+            android:strokeColor="#FF4D4F"
+            android:strokeWidth="30"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:pathData="M 184,256 L 280,160"/>
+
+        <!-- Vertical drop through baseline (green) -->
+        <path
+            android:strokeColor="#00C087"
+            android:strokeWidth="30"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:pathData="M 280,160 L 280,360"/>
+
+        <!-- Recovery (blue) -->
+        <path
+            android:strokeColor="#3B82F6"
+            android:strokeWidth="30"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:pathData="M 280,360 L 376,256"/>
+
+        <!-- Trailing flat (blue) -->
+        <path
+            android:strokeColor="#3B82F6"
+            android:strokeWidth="30"
+            android:strokeLineCap="round"
+            android:pathData="M 376,256 L 448,256"/>
+    </group>
+</vector>
