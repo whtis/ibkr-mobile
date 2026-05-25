@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: General questions and discussion
+    url: https://github.com/whtis/ibkr-mobile/discussions
+    about: Use Discussions for setup questions, general help, and ideas. Issues are for bugs and concrete feature proposals.

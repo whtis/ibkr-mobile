@@ -1,0 +1,72 @@
+name: Bug report
+description: Something is broken — file a clear reproduction case.
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Please fill in every section — empty issues get closed quickly.
+        For **security issues that could affect money or credentials**, do NOT use this form; contact the author via their GitHub profile instead.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What is broken? What did you expect?
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Numbered list, starting from a clean state.
+      placeholder: |
+        1. Start backend with MOCK_MODE=yes
+        2. Open app, tap Positions tab
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: input
+    id: app-version
+    attributes:
+      label: App version + build number
+      placeholder: "e.g. 0.1.0 (202605251)"
+
+  - type: input
+    id: backend-version
+    attributes:
+      label: Backend version or git SHA
+      placeholder: "e.g. a2f3e96 or commit short hash"
+
+  - type: input
+    id: device
+    attributes:
+      label: Device and OS version
+      placeholder: "e.g. Pixel 7, Android 15"
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs, screenshots, or other context
+      description: Paste relevant logcat / backend log lines, or attach screenshots.
+
+  - type: checkboxes
+    id: existing
+    attributes:
+      label: Pre-flight
+      options:
+        - label: I have checked existing issues and this is not a duplicate.
+          required: true
+        - label: I have tried this with `MOCK_MODE=yes` (where applicable) to rule out account-specific issues.
