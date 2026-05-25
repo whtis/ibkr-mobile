@@ -8,10 +8,69 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-async-009688)](https://fastapi.tiangolo.com/)
 [![ib_async](https://img.shields.io/badge/ib__async-2.1.0-0a66c2)](https://github.com/ib-api-reloaded/ib_async)
 
-Single user, single device, single Mac. Built because the official IBKR mobile app is slow, ugly, and missing the things a Longbridge user takes for granted: snappy K-lines with crosshair, intraday session classification (盘前 / 盘中 / 盘后 / 夜盘), red-up / green-down (红涨绿跌), aggregated positions PnL, one-tap quick-actions on long-press.
+Built because the official IBKR mobile app is slow, ugly, and missing the things a Longbridge user takes for granted: snappy K-lines with crosshair, intraday session classification (盘前 / 盘中 / 盘后 / 夜盘), red-up / green-down (红涨绿跌), aggregated positions PnL, one-tap quick-actions on long-press, and a UI that doesn't look like it was designed in 2008.
 
 > **⚠️ Disclaimer**
-> This is a personal project for educational purposes. It is **not** financial advice, **not** affiliated with Interactive Brokers or Longbridge, and is provided **as-is** with no warranty. Trading involves substantial risk of loss. Use paper account first. You are solely responsible for any orders submitted through this software.
+> This is a personal project for educational purposes. It is **not** financial advice, **not** affiliated with Interactive Brokers or Longbridge, and is provided **as-is** with no warranty. Trading involves substantial risk of loss. Use a paper account first. You are solely responsible for any orders submitted through this software.
+
+---
+
+## Screenshots
+
+<p align="center">
+  <img src="docs/screenshots/01-positions.png" width="22%" alt="Positions" />
+  <img src="docs/screenshots/03-kline.png" width="22%" alt="K-line chart with MA + MACD + cost basis" />
+  <img src="docs/screenshots/02-intraday.png" width="22%" alt="Intraday with VWAP and 4-channel session colors" />
+  <img src="docs/screenshots/07-market.png" width="22%" alt="Market overview" />
+</p>
+
+<p align="center">
+  <em>From left: Positions with aggregated PnL · K-line with MA/MACD/cost basis · Intraday with VWAP and pre/regular/post/overnight session coloring · Market overview with movers</em>
+</p>
+
+<details>
+<summary>More screenshots</summary>
+
+<p align="center">
+  <img src="docs/screenshots/08-quick-actions.png" width="22%" alt="Long-press quick actions" />
+  <img src="docs/screenshots/04-panorama.png" width="22%" alt="Company info" />
+  <img src="docs/screenshots/05-financials.png" width="22%" alt="Financials" />
+  <img src="docs/screenshots/06-watchlist-empty.png" width="22%" alt="Watchlist empty state" />
+</p>
+
+<p align="center">
+  <em>Long-press quick actions · Company panorama · Financials · Watchlist empty state</em>
+</p>
+
+</details>
+
+All screenshots are from the bundled **mock mode** running against a freshly-built emulator — no real account is needed to see the app like this. See [Quickstart](#quickstart) below.
+
+---
+
+## Try it in 60 seconds (mock mode)
+
+Don't have an IBKR or LongPort account and just want to look around?
+
+```bash
+git clone https://github.com/whtis/ibkr-mobile.git
+cd ibkr-mobile/backend
+cp .env.example .env
+echo "MOCK_MODE=yes" >> .env          # one line is the only required change
+echo "API_TOKEN=anything-you-want" >> .env
+uv sync
+uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+Then in another shell:
+
+```bash
+cd ibkr-mobile/android
+./gradlew assembleDebug
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+Open the app → Settings → backend URL `http://10.0.2.2:8000` (emulator) or `http://<your-LAN-ip>:8000` (real device), token = whatever you put in `.env` → save. Done. Mock mode serves a synthesized portfolio of AAPL, TSLA, NVDA, MSFT, GOOGL, BABA, SPY with realistic K-lines, intraday charts, and option chains.
 
 ---
 
@@ -119,6 +178,9 @@ cp .env.example .env
 #   API_TOKEN=$(openssl rand -hex 32)
 #   LONGPORT_APP_KEY / SECRET / ACCESS_TOKEN — optional, but recommended for free quotes
 #     (get at https://open.longportapp.com → Developer Center → Create App)
+#
+# OR: skip the IBKR + LongPort fields entirely and set MOCK_MODE=yes for synthetic data.
+# See "Try it in 60 seconds" above.
 
 # pull and start IB Gateway (Docker)
 docker compose pull
@@ -251,12 +313,24 @@ ibkr-mobile/
 
 ## Status
 
-**v1**: shipped, in personal use. Single-user, paper account.
-**v2**: design complete, implementation pending — see [`ROADMAP.md`](ROADMAP.md). Adds per-device multi-user, moves Longbridge SDK in-app, makes the backend credential-free.
+- **v1**: shipped, in personal daily use. Single-user, paper account.
+- **v2**: design complete, implementation pending — see [`ROADMAP.md`](ROADMAP.md). Adds per-device multi-user, moves Longbridge SDK in-app, makes the backend credential-free.
 
-Active development. APIs and screens change without notice. Not accepting feature requests, but bug reports and pull requests are welcome.
+Active development. APIs and screens may change without notice.
 
-Tested with: Pixel-class Android devices, IBKR paper account, LongPort developer account.
+Tested with: Pixel-class Android devices and emulators, IBKR paper account, LongPort developer account.
+
+---
+
+## Contributing
+
+PRs are welcome, especially ones aligned with [`ROADMAP.md`](ROADMAP.md). For anything non-trivial, please open an issue first so we can discuss direction before you write the code.
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for dev setup, code style, what kinds of PRs are most likely to land, and what to avoid. Note that **mock mode** (described in Quickstart above) lets you contribute without any brokerage credentials — start there.
+
+Looking for somewhere to start? Check the [`good first issue`](https://github.com/whtis/ibkr-mobile/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) and [`help wanted`](https://github.com/whtis/ibkr-mobile/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22) labels.
+
+This project follows a [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ---
 
@@ -268,4 +342,4 @@ MIT. See [`LICENSE`](LICENSE).
 
 ---
 
-Built by [@whtis](https://github.com/whtis).
+Built by [@whtis](https://github.com/whtis). Contributions from anyone who finds it useful.

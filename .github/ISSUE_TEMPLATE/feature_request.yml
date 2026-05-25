@@ -1,0 +1,48 @@
+name: Feature request
+description: Propose a new feature or enhancement. Read ROADMAP.md first.
+title: "[feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before opening: please read [ROADMAP.md](../ROADMAP.md). Requests outside the roadmap are unlikely to land — but discussion is welcome.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+      description: Describe the user-facing problem, not a specific implementation.
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+
+  - type: dropdown
+    id: roadmap-alignment
+    attributes:
+      label: Does this align with the current roadmap?
+      options:
+        - "Yes — it fits a documented v1 or v2 area"
+        - "No — but I think it should be added"
+        - "Not sure"
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Pre-flight
+      options:
+        - label: I have checked the roadmap and existing issues.
+          required: true
