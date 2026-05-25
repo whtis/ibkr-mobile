@@ -1,0 +1,51 @@
+# env / secrets
+.env
+.env.local
+*.local
+*.keystore
+*.jks
+google-services.json
+
+# python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.venv/
+.uv/
+uv.lock
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# android / gradle
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
+captures/
+.cxx/
+.kotlin/
+release/
+*.apk
+*.aab
+
+# os
+.DS_Store
+Thumbs.db
+
+# editor
+.vscode/
+*.swp
+*~
+
+# ibkr runtime
+backend/ib-data/
+backend/logs/
+backend/*.db
+backend/*.sqlite*
+
+# claude / agents internal
+.omc/
+.claude/

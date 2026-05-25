@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Bars are styled programmatically via enableEdgeToEdge() in MainActivity,
+         which picks light/dark based on isSystemInDarkTheme(). -->
+    <style name="Theme.IbkrMobile" parent="android:Theme.Material.NoActionBar" />
+</resources>
