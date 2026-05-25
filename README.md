@@ -240,16 +240,21 @@ ibkr-mobile/
 
 ## Documentation
 
+- [`ROADMAP.md`](ROADMAP.md) — v2 plan: multi-user, Longbridge SDK in-app, dynamic Gateway lifecycle
 - [`BUILD.md`](BUILD.md) — architecture, topology, decisions
 - [`DESIGN_NOTES.md`](DESIGN_NOTES.md) — Longbridge UI spec, screen-by-screen
 - [`ONBOARDING.md`](ONBOARDING.md) — IBKR auth gotchas + Android/Gradle troubleshooting
 - [`backend/README.md`](backend/README.md) — backend setup + smoke tests
+- [`openspec/changes/multi-user-v2/`](openspec/changes/multi-user-v2/) — v2 detailed spec (proposal, design, tasks)
 
 ---
 
 ## Status
 
-Personal project. Active development. APIs and screens change without notice. Not accepting feature requests, but bug reports and pull requests are welcome.
+**v1**: shipped, in personal use. Single-user, paper account.
+**v2**: design complete, implementation pending — see [`ROADMAP.md`](ROADMAP.md). Adds per-device multi-user, moves Longbridge SDK in-app, makes the backend credential-free.
+
+Active development. APIs and screens change without notice. Not accepting feature requests, but bug reports and pull requests are welcome.
 
 Tested with: Pixel-class Android devices, IBKR paper account, LongPort developer account.
 
