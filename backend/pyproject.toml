@@ -9,7 +9,9 @@ dependencies = [
     "ib-async>=1.0.3",
     "pydantic>=2.9.0",
     "pydantic-settings>=2.5.0",
-    "longport>=2.0.0",
+    # longport 3.x wheels require glibc >= 2.39 (manylinux_2_39).
+    # Pin to 2.x so installs work on Debian 12 / Ubuntu 22.04 and older.
+    "longport>=2.0,<3",
 ]
 
 [tool.uv]
