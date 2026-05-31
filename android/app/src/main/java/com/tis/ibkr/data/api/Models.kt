@@ -197,3 +197,13 @@ data class StaticInfo(
             ?: nameHk?.takeIf { it.isNotBlank() }
             ?: symbol
 }
+
+
+@Serializable
+data class SearchResult(
+    val symbol: String,
+    @SerialName("sec_type") val secType: String,
+    @SerialName("primary_exchange") val primaryExchange: String? = null,
+    val currency: String? = null,
+    @SerialName("derivative_sec_types") val derivativeSecTypes: List<String> = emptyList(),
+)

@@ -1,29 +1,30 @@
 package com.tis.ibkr.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -32,17 +33,14 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.tis.ibkr.data.api.Quote
-import com.tis.ibkr.data.api.StaticInfo
-import com.tis.ibkr.ui.components.NumericText
-import com.tis.ibkr.ui.components.changeColor
-import com.tis.ibkr.ui.components.formatPrice3
-import com.tis.ibkr.ui.components.formatSignedPct
+import com.tis.ibkr.data.api.SearchResult
 import com.tis.ibkr.ui.theme.LbColors
 import com.tis.ibkr.viewmodel.SearchViewModel
 
@@ -63,11 +61,11 @@ fun SearchScreen(
                 value = state.query,
                 onValueChange = vm::updateQuery,
                 modifier = Modifier.fillMaxWidth().padding(end = 12.dp),
-                placeholder = { Text("输入 symbol，如 TSLA / AAPL / 0700", color = LbColors.OnSurfaceMuted) },
+                placeholder = { Text("代码或公司名，如 TSLA / alibaba / 700", color = LbColors.OnSurfaceMuted) },
                 leadingIcon = { Icon(Icons.Outlined.Search, null, tint = LbColors.OnSurfaceMuted) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(
-                    capitalization = KeyboardCapitalization.Characters,
+                    capitalization = KeyboardCapitalization.None,
                     keyboardType = KeyboardType.Ascii,
                     imeAction = ImeAction.Search,
                 ),
@@ -96,96 +94,67 @@ fun SearchScreen(
                 color = LbColors.Error,
                 style = MaterialTheme.typography.bodyMedium,
             )
-            state.info != null -> ResultCard(
-                info = state.info!!,
-                quote = state.quote,
-                inWatchlist = state.inWatchlist,
-                justAdded = state.justAdded,
-                onAdd = vm::addToWatchlist,
-                onRemove = vm::removeFromWatchlist,
-                onOpen = { onOpenSymbol(state.info!!.symbol, state.info!!.exchange ?: "SMART", state.info!!.currency ?: "USD") },
-            )
             state.query.isBlank() -> Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
                 Text(
-                    "输入股票代码搜索\n美股 TSLA / 港股 700 / 沪深 600519",
+                    "输入股票代码或公司名搜索
+美股 TSLA / alibaba · 港股 700 · 关键字也行",
                     color = LbColors.OnSurfaceMuted,
                     style = MaterialTheme.typography.bodyMedium,
                 )
+            }
+            state.results.isEmpty() -> Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
+                Text("没有匹配的结果", color = LbColors.OnSurfaceMuted, style = MaterialTheme.typography.bodyMedium)
+            }
+            else -> LazyColumn(contentPadding = PaddingValues(vertical = 4.dp)) {
+                items(state.results, key = { it.symbol + "@" + (it.primaryExchange ?: "") + (it.currency ?: "") }) { r ->
+                    SearchRow(
+                        result = r,
+                        onClick = {
+                            onOpenSymbol(
+                                r.symbol,
+                                r.primaryExchange ?: "SMART",
+                                r.currency ?: "USD",
+                            )
+                        },
+                    )
+                    HorizontalDivider(color = LbColors.Outline.copy(alpha = 0.3f), thickness = 0.5.dp)
+                }
             }
         }
     }
 }
 
 @Composable
-private fun ResultCard(
-    info: StaticInfo,
-    quote: Quote?,
-    inWatchlist: Boolean,
-    justAdded: Boolean,
-    onAdd: () -> Unit,
-    onRemove: () -> Unit,
-    onOpen: () -> Unit,
-) {
-    Card(
+private fun SearchRow(result: SearchResult, onClick: () -> Unit) {
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp)
-            .clickable(onClick = onOpen),
-        colors = CardDefaults.cardColors(containerColor = LbColors.Surface),
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Bottom,
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                result.symbol,
+                color = LbColors.OnSurface,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Spacer(Modifier.width(8.dp))
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(LbColors.SurfaceElevated)
+                    .padding(horizontal = 6.dp, vertical = 2.dp),
             ) {
-                Column {
-                    Text(info.displayName, color = LbColors.OnSurface, style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        "${info.symbol}${info.exchange?.let { " · $it" } ?: ""}${info.currency?.let { " · $it" } ?: ""}",
-                        color = LbColors.OnSurfaceMuted,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
-                if (quote?.last != null) {
-                    Column(horizontalAlignment = Alignment.End) {
-                        NumericText(
-                            text = formatPrice3(quote.last),
-                            color = changeColor(quote.change ?: 0.0),
-                            style = MaterialTheme.typography.titleMedium,
-                        )
-                        quote.changePct?.let { pct ->
-                            NumericText(
-                                text = formatSignedPct(pct),
-                                color = changeColor(quote.change ?: 0.0),
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                        }
-                    }
-                }
-            }
-
-            HorizontalDivider(color = LbColors.Outline.copy(alpha = 0.5f), thickness = 0.5.dp)
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                if (inWatchlist) {
-                    OutlinedButton(onClick = onRemove, modifier = Modifier.weight(1f)) {
-                        Text("从自选移除")
-                    }
-                } else {
-                    Button(
-                        onClick = onAdd,
-                        modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(containerColor = LbColors.Accent, contentColor = LbColors.OnSurface),
-                    ) { Text(if (justAdded) "✓ 已加入自选" else "加入自选") }
-                }
-                OutlinedButton(onClick = onOpen, modifier = Modifier.weight(1f)) {
-                    Text("查看 K 线")
-                }
+                Text(result.secType, color = LbColors.OnSurfaceMuted, style = MaterialTheme.typography.labelSmall)
             }
         }
+        Text(
+            listOfNotNull(result.primaryExchange, result.currency).joinToString(" · "),
+            color = LbColors.OnSurfaceMuted,
+            style = MaterialTheme.typography.bodySmall,
+        )
     }
 }

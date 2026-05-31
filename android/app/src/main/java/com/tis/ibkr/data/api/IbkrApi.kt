@@ -129,6 +129,16 @@ class IbkrApi(private val settingsStore: SettingsStore) {
         }.body()
     }
 
+    suspend fun searchSymbols(q: String, limit: Int = 10): List<SearchResult> = client.get(
+        "${base()}/search",
+    ) {
+        header(HttpHeaders.Authorization, "Bearer ${token()}")
+        url {
+            parameters.append("q", q)
+            parameters.append("limit", limit.toString())
+        }
+    }.body()
+
     suspend fun placeOrder(req: PlaceOrderRequest): OrderResponse = client.post("${base()}/orders") {
         header(HttpHeaders.Authorization, "Bearer ${token()}")
         setBody(req)
