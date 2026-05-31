@@ -23,7 +23,7 @@ services:
       - "127.0.0.1:4002:4004"
       - "127.0.0.1:5900:5900"
     healthcheck:
-      test: ["CMD-SHELL", "nc -z localhost 4004 || exit 1"]
+      test: ["CMD-SHELL", "bash -c '(exec 3<>/dev/tcp/localhost/4004) 2>/dev/null' || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
