@@ -25,6 +25,9 @@ import kotlinx.serialization.json.Json
 class IbkrApi(private val settingsStore: SettingsStore) {
 
     private val client = HttpClient(OkHttp) {
+        // Non-2xx responses throw (ClientRequestException for 4xx, ServerResponseException for 5xx),
+        // letting callers map status codes to UX errors instead of failing kotlinx.serialization.
+        expectSuccess = true
         install(ContentNegotiation) {
             json(Json {
                 ignoreUnknownKeys = true
