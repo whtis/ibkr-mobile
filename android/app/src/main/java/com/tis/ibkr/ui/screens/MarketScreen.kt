@@ -20,6 +20,10 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.Icons
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
@@ -45,6 +49,7 @@ import com.tis.ibkr.viewmodel.MarketViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MarketScreen(
+    onSearch: () -> Unit,
     onOpenSymbol: (symbol: String, exchange: String, currency: String) -> Unit,
     vm: MarketViewModel = viewModel(),
 ) {
@@ -57,13 +62,21 @@ fun MarketScreen(
     ) {
         LazyColumn(contentPadding = PaddingValues(vertical = 12.dp, horizontal = 0.dp)) {
             item("hdr") {
-                Text(
-                    "市场",
-                    color = LbColors.OnSurface,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        "市场",
+                        color = LbColors.OnSurface,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    IconButton(onClick = onSearch) {
+                        Icon(Icons.Outlined.Search, "搜索", tint = LbColors.OnSurface)
+                    }
+                }
             }
             item("idx") { IndexesRow(state, onOpenSymbol) }
             item("gainers") {
