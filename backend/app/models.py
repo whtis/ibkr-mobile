@@ -127,3 +127,15 @@ class Depth(BaseModel):
     symbol: str
     bids: list[DepthLevel] = []
     asks: list[DepthLevel] = []
+
+class SearchResult(BaseModel):
+    """A symbol-search match from IBKR's reqMatchingSymbols.
+    No human-readable name — IBKR's matching API does not provide one.
+    Use /static/{symbol} after the user picks a row to fetch the name.
+    """
+    symbol: str
+    sec_type: str
+    primary_exchange: str | None = None
+    currency: str | None = None
+    derivative_sec_types: list[str] = []
+
