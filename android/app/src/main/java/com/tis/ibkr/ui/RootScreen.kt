@@ -83,9 +83,12 @@ fun RootScreen() {
                 )
             }
             composable(Tab.Market.route) {
-                MarketScreen(onOpenSymbol = { sym, ex, cur ->
-                    nav.navigate("stock/$sym?exchange=$ex&currency=$cur")
-                })
+                MarketScreen(
+                    onSearch = { nav.navigate("search") },
+                    onOpenSymbol = { sym, ex, cur ->
+                        nav.navigate("stock/$sym?exchange=$ex&currency=$cur")
+                    },
+                )
             }
             composable("search") {
                 SearchScreen(
