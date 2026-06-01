@@ -129,13 +129,14 @@ class Depth(BaseModel):
     asks: list[DepthLevel] = []
 
 class SearchResult(BaseModel):
-    """A symbol-search match from IBKR's reqMatchingSymbols.
-    No human-readable name — IBKR's matching API does not provide one.
-    Use /static/{symbol} after the user picks a row to fetch the name.
+    """A symbol-search match. Sourced from IBKR's reqMatchingSymbols (which does not
+    provide a human-readable name) or, as fallback for Chinese keywords or when IBKR
+    returns nothing, from Eastmoney's unified suggest API (which does include a name).
     """
     symbol: str
     sec_type: str
     primary_exchange: str | None = None
     currency: str | None = None
     derivative_sec_types: list[str] = []
+    name: str | None = None
 
