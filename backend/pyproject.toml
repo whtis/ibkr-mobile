@@ -12,6 +12,7 @@ dependencies = [
     # longport 3.x wheels require glibc >= 2.39 (manylinux_2_39).
     # Pin to 2.x so installs work on Debian 12 / Ubuntu 22.04 and older.
     "longport>=2.0,<3",
+    "httpx>=0.27.0",
 ]
 
 [tool.uv]
