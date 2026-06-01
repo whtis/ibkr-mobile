@@ -116,9 +116,10 @@ class LongbridgeClient:
         return await asyncio.to_thread(ctx.depth, symbol)
 
     async def intraday(self, symbol: str) -> list:
-        from longport.openapi import TradeSessions
         ctx = await self.ctx()
-        return await asyncio.to_thread(ctx.intraday, symbol, TradeSessions.All)
+        # longport 2.x: intraday(symbol) only. 3.x added a trade_sessions arg with a default,
+        # so calling without it works on both; we pin to 2.x for glibc compatibility.
+        return await asyncio.to_thread(ctx.intraday, symbol)
 
     async def trades(self, symbol: str, count: int = 30) -> list:
         ctx = await self.ctx()
