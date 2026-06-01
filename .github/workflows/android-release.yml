@@ -2,12 +2,15 @@ name: Android release
 
 # Build a GitHub Release with an installable APK whenever a v* tag is pushed.
 #
-# Why assembleDebug and not assembleRelease:
-#   The release variant has minify+proguard enabled but no signingConfig in
-#   app/build.gradle.kts, so assembleRelease would produce an unsigned APK
-#   that won't install. assembleDebug builds a working APK signed with the
-#   default debug keystore — fine for personal sideloading. Switch to a
-#   real release-signed build once a keystore secret is wired up.
+# Builds assembleRelease signed with the release keystore. The keystore lives
+# only in GitHub Secrets (base64), is decoded into RUNNER_TEMP at build time,
+# and the signature is verified to NOT be the debug key before publishing.
+# versionName / versionCode are parsed from the tag (see "Derive version").
+#
+# Required repo secrets:
+#   ANDROID_KEYSTORE_BASE64  - base64 of the release .jks (no newlines)
+#   ANDROID_KEY_ALIAS        - key alias inside the keystore
+#   ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_PASSWORD
 
 on:
   push:
@@ -55,18 +58,25 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: |
           tag="${{ inputs.tag || github.ref_name }}"
-          # versionName: tag without the leading "v" (e.g. v0.1.0-alpha.20260601 -> 0.1.0-alpha.20260601)
+          # versionName: tag without the leading "v" (e.g. v1.0.0-beta.20260601 -> 1.0.0-beta.20260601)
           version_name="${tag#v}"
-          # date for versionCode: prefer the YYYYMMDD embedded in an alpha/beta tag,
-          # fall back to the build date (UTC) for stable tags that carry no date.
+          # date for versionCode:
+          #   - alpha/beta: the YYYYMMDD embedded in the tag name
+          #   - stable (no date): the UTC build date, but never earlier than any
+          #     date already present in an existing tag (avoids a same-day stable
+          #     getting a smaller code than its beta when timezones disagree).
           if [[ "$version_name" =~ (alpha|beta)\.([0-9]{8}) ]]; then
             date="${BASH_REMATCH[2]}"
           else
-            date="$(date -u +%Y%m%d)"
+            build_date="$(date -u +%Y%m%d)"
+            max_tag_date="$(git tag --list | grep -oE '[0-9]{8}' | sort -n | tail -1 || true)"
+            date="$build_date"
+            if [[ -n "$max_tag_date" && "$max_tag_date" -gt "$build_date" ]]; then date="$max_tag_date"; fi
           fi
-          # daily sequence (0-based): how many tags already carry this date, minus the current one.
-          count="$(git tag --list "*${date}*" | wc -l | tr -d ' ')"
-          seq=$(( count > 0 ? count - 1 : 0 ))
+          # seq (0-based) = number of OTHER tags carrying this date (= prior same-day releases).
+          # Excluding the current tag fixes the same-day beta->stable collision.
+          others="$(git tag --list "*${date}*" | grep -vFx "$tag" || true)"
+          if [[ -z "$others" ]]; then seq=0; else seq="$(printf '%s\n' "$others" | grep -c .)"; fi
           # versionCode = YYYYMMDD * 100 + seq  (monotonic, same-day-safe, < 2.1e9 until year 2099)
           version_code=$(( 10#$date * 100 + seq ))
           echo "version_name=$version_name" >> "$GITHUB_OUTPUT"
@@ -74,11 +84,38 @@ jobs:
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "Resolved versionName=$version_name versionCode=$version_code (date=$date seq=$seq)"
 
-      - name: Build APK
+      - name: Decode release keystore
+        shell: bash
+        working-directory: ${{ github.workspace }}
         run: |
-          ./gradlew :app:assembleDebug --no-daemon --stacktrace \
+          set -euo pipefail
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/release.jks"
+          test -s "$RUNNER_TEMP/release.jks"  # fail hard if the secret is missing/empty
+
+      - name: Build release APK
+        env:
+          RELEASE_STORE_FILE: ${{ runner.temp }}/release.jks
+          RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          ./gradlew :app:assembleRelease --no-daemon --stacktrace \
             -PappVersionName="${{ steps.ver.outputs.version_name }}" \
             -PappVersionCode="${{ steps.ver.outputs.version_code }}"
+
+      - name: Verify release signature (reject debug key)
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          APKSIGNER="$ANDROID_HOME/build-tools/36.0.0/apksigner"
+          APK=android/app/build/outputs/apk/release/app-release.apk
+          certs="$("$APKSIGNER" verify --verbose --print-certs "$APK")"
+          echo "$certs"
+          if echo "$certs" | grep -q "CN=Android Debug"; then
+            echo "::error::APK is signed with the DEBUG key, not the release key — aborting"
+            exit 1
+          fi
 
       - name: Stage APK with tag in name
         id: stage
@@ -87,7 +124,7 @@ jobs:
         run: |
           tag="${{ steps.ver.outputs.tag }}"
           mkdir -p dist
-          cp android/app/build/outputs/apk/debug/app-debug.apk \
+          cp android/app/build/outputs/apk/release/app-release.apk \
              "dist/ibkr-mobile-${tag}.apk"
           ls -lh dist/
           echo "apk=dist/ibkr-mobile-${tag}.apk" >> "$GITHUB_OUTPUT"
@@ -99,5 +136,6 @@ jobs:
           tag_name: ${{ steps.stage.outputs.tag }}
           name: ${{ steps.stage.outputs.tag }}
           generate_release_notes: true
+          prerelease: ${{ contains(steps.ver.outputs.tag, '-') }}  # alpha/beta tags -> prerelease
           files: ${{ steps.stage.outputs.apk }}
           fail_on_unmatched_files: true
