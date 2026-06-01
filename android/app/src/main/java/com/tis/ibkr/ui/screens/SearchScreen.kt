@@ -96,8 +96,7 @@ fun SearchScreen(
             )
             state.query.isBlank() -> Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
                 Text(
-                    "输入股票代码或公司名搜索
-美股 TSLA / alibaba · 港股 700 · 关键字也行",
+                    "输入股票代码或公司名搜索\n美股 TSLA / alibaba · 港股 700 · 关键字也行",
                     color = LbColors.OnSurfaceMuted,
                     style = MaterialTheme.typography.bodyMedium,
                 )
