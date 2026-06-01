@@ -14,8 +14,10 @@ android {
         applicationId = "com.tis.ibkr"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        // Driven by the release workflow via -PappVersionCode / -PappVersionName,
+        // parsed from the pushed v* tag. Defaults keep local/debug builds working.
+        versionCode = (findProperty("appVersionCode") as String?)?.toIntOrNull() ?: 1
+        versionName = (findProperty("appVersionName") as String?) ?: "0.1.0"
     }
 
     buildTypes {
