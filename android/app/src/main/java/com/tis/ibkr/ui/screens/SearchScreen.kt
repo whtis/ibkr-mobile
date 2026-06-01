@@ -134,21 +134,31 @@ private fun SearchRow(result: SearchResult, onClick: () -> Unit) {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                result.symbol,
-                color = LbColors.OnSurface,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Spacer(Modifier.width(8.dp))
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(LbColors.SurfaceElevated)
-                    .padding(horizontal = 6.dp, vertical = 2.dp),
-            ) {
-                Text(result.secType, color = LbColors.OnSurfaceMuted, style = MaterialTheme.typography.labelSmall)
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    result.symbol,
+                    color = LbColors.OnSurface,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Spacer(Modifier.width(8.dp))
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(LbColors.SurfaceElevated)
+                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                ) {
+                    Text(result.secType, color = LbColors.OnSurfaceMuted, style = MaterialTheme.typography.labelSmall)
+                }
+            }
+            result.name?.takeIf { it.isNotBlank() }?.let { n ->
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    n,
+                    color = LbColors.OnSurfaceMuted,
+                    style = MaterialTheme.typography.bodySmall,
+                )
             }
         }
         Text(

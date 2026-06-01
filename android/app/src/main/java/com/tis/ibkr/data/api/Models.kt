@@ -206,4 +206,5 @@ data class SearchResult(
     @SerialName("primary_exchange") val primaryExchange: String? = null,
     val currency: String? = null,
     @SerialName("derivative_sec_types") val derivativeSecTypes: List<String> = emptyList(),
+    val name: String? = null,
 )
