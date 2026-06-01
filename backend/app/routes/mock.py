@@ -33,6 +33,7 @@ from ..models import (
     OptionExpiry,
     Position,
     Quote,
+    SearchResult,
     StaticInfo,
     TradeTick,
 )
@@ -667,6 +668,46 @@ async def mock_ws_quotes(ws: WebSocket, token: str = Query(...)) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Search — match the seeded universe by symbol or company name (EN/CN).
+# ---------------------------------------------------------------------------
+
+mock_search_router = APIRouter(prefix="/search", dependencies=[Depends(require_token)])
+
+
+@mock_search_router.get("", response_model=list[SearchResult])
+async def mock_search(
+    q: str = Query(..., min_length=1, max_length=32, description="Partial symbol or company name"),
+    limit: int = Query(10, ge=1, le=30),
+) -> list[SearchResult]:
+    needle = q.strip().lower()
+    if not needle:
+        return []
+    results: list[SearchResult] = []
+    for sym, info in _UNIVERSE.items():
+        name_en = info.get("name_en", "")
+        haystack = (sym, name_en, info.get("name_cn", ""))
+        if any(needle in str(h).lower() for h in haystack):
+            results.append(SearchResult(
+                symbol=sym,
+                sec_type="ETF" if "ETF" in name_en else "STK",
+                primary_exchange=info.get("exchange"),
+                currency="USD",
+                name=name_en or None,
+            ))
+    # Ticker typed that isn't in the seeded universe: still return a plausible
+    # STK match so the demo can drill into a (mock) detail page for any symbol.
+    if not results and needle.isalnum() and len(needle) <= 6:
+        results.append(SearchResult(
+            symbol=q.strip().upper(),
+            sec_type="STK",
+            primary_exchange="NASDAQ",
+            currency="USD",
+            name=None,
+        ))
+    return results[:limit]
+
+
+# ---------------------------------------------------------------------------
 # Bundled list of mock routers — main.py imports this.
 # ---------------------------------------------------------------------------
 
@@ -683,5 +724,6 @@ ALL_MOCK_ROUTERS = (
     mock_chain_router,
     mock_orders_router,
     mock_executions_router,
+    mock_search_router,
     mock_ws_router,
 )
