@@ -10,6 +10,23 @@ android {
     namespace = "com.tis.ibkr"
     compileSdk = 36
 
+    // Release signing: keystore path + creds come from env vars (set by CI from
+    // GitHub Secrets). When absent (local dev), fall back to debug signing so
+    // assembleRelease still builds. Never call file() on a null path.
+    val releaseStoreFile = System.getenv("RELEASE_STORE_FILE")
+    val hasReleaseKeystore = !releaseStoreFile.isNullOrBlank() && file(releaseStoreFile).exists()
+
+    signingConfigs {
+        if (hasReleaseKeystore) {
+            create("release") {
+                storeFile = file(releaseStoreFile!!)
+                storePassword = System.getenv("RELEASE_STORE_PASSWORD")
+                keyAlias = System.getenv("RELEASE_KEY_ALIAS")
+                keyPassword = System.getenv("RELEASE_KEY_PASSWORD")
+            }
+        }
+    }
+
     defaultConfig {
         applicationId = "com.tis.ibkr"
         minSdk = 26
@@ -30,6 +47,13 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            // Use the release keystore when available, else fall back to debug
+            // (CI always provides it; the signature is verified downstream).
+            signingConfig = if (hasReleaseKeystore) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
     }
 
