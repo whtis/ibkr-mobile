@@ -12,28 +12,33 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -51,37 +56,81 @@ fun SearchScreen(
     vm: SearchViewModel = viewModel(),
 ) {
     val state by vm.state.collectAsState()
+    val focusRequester = remember { FocusRequester() }
+    // Auto-focus the field and pop the keyboard the moment search opens.
+    LaunchedEffect(Unit) { focusRequester.requestFocus() }
 
     Column(modifier = Modifier.fillMaxSize().padding(top = 4.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 4.dp)) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Outlined.ArrowBack, "返回", tint = LbColors.OnSurface)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
+        ) {
+            // Filled, fully-rounded search pill — no border, light-gray fill.
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(40.dp)
+                    .clip(RoundedCornerShape(percent = 50))
+                    .background(LbColors.SurfaceElevated)
+                    .padding(start = 12.dp, end = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    Icons.Outlined.Search,
+                    contentDescription = null,
+                    tint = LbColors.OnSurfaceMuted,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(Modifier.width(8.dp))
+                Box(modifier = Modifier.weight(1f)) {
+                    if (state.query.isEmpty()) {
+                        Text(
+                            "代码或公司名，如 TSLA / alibaba / 700",
+                            color = LbColors.OnSurfaceMuted,
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 1,
+                        )
+                    }
+                    BasicTextField(
+                        value = state.query,
+                        onValueChange = vm::updateQuery,
+                        modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
+                        singleLine = true,
+                        textStyle = MaterialTheme.typography.bodyMedium.copy(color = LbColors.OnSurface),
+                        cursorBrush = SolidColor(LbColors.Accent),
+                        keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.None,
+                            keyboardType = KeyboardType.Ascii,
+                            imeAction = ImeAction.Search,
+                        ),
+                    )
+                }
+                if (state.query.isNotEmpty()) {
+                    Spacer(Modifier.width(4.dp))
+                    Icon(
+                        Icons.Outlined.Close,
+                        contentDescription = "清除",
+                        tint = LbColors.OnSurfaceMuted,
+                        modifier = Modifier
+                            .size(18.dp)
+                            .clip(CircleShape)
+                            .clickable { vm.updateQuery("") },
+                    )
+                }
             }
-            OutlinedTextField(
-                value = state.query,
-                onValueChange = vm::updateQuery,
-                modifier = Modifier.fillMaxWidth().padding(end = 12.dp),
-                placeholder = { Text("代码或公司名，如 TSLA / alibaba / 700", color = LbColors.OnSurfaceMuted) },
-                leadingIcon = { Icon(Icons.Outlined.Search, null, tint = LbColors.OnSurfaceMuted) },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(
-                    capitalization = KeyboardCapitalization.None,
-                    keyboardType = KeyboardType.Ascii,
-                    imeAction = ImeAction.Search,
-                ),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = LbColors.Surface,
-                    unfocusedContainerColor = LbColors.Surface,
-                    focusedTextColor = LbColors.OnSurface,
-                    unfocusedTextColor = LbColors.OnSurface,
-                    focusedBorderColor = LbColors.Accent,
-                    unfocusedBorderColor = LbColors.Outline,
-                    cursorColor = LbColors.Accent,
-                ),
+            Text(
+                "取消",
+                color = LbColors.OnSurface,
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable(onClick = onBack)
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
             )
         }
 
-        Spacer(Modifier.height(8.dp))
         HorizontalDivider(color = LbColors.Outline.copy(alpha = 0.5f), thickness = 0.5.dp)
 
         when {
