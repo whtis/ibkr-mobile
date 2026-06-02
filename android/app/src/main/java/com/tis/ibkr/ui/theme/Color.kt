@@ -55,6 +55,12 @@ val LightIbkrColors = IbkrColors(
 
 val LocalIbkrColors = staticCompositionLocalOf { DarkIbkrColors }
 
+/**
+ * Up/down color convention. true = red-up / green-down (A股·港股习惯, default);
+ * false = green-up / red-down (美股习惯). Read by changeColor()/changeBgColor().
+ */
+val LocalRedUp = staticCompositionLocalOf { true }
+
 val LbColors: IbkrColors
     @Composable
     @ReadOnlyComposable

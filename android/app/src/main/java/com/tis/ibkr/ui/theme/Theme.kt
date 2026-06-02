@@ -41,11 +41,12 @@ private fun lightScheme(c: IbkrColors) = lightColorScheme(
 @Composable
 fun IbkrTheme(
     useDarkTheme: Boolean = isSystemInDarkTheme(),
+    redUp: Boolean = true,
     content: @Composable () -> Unit,
 ) {
     val ibkr = if (useDarkTheme) DarkIbkrColors else LightIbkrColors
     val scheme = if (useDarkTheme) darkScheme(ibkr) else lightScheme(ibkr)
-    CompositionLocalProvider(LocalIbkrColors provides ibkr) {
+    CompositionLocalProvider(LocalIbkrColors provides ibkr, LocalRedUp provides redUp) {
         MaterialTheme(
             colorScheme = scheme,
             typography = IbkrTypography,

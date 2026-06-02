@@ -2,6 +2,7 @@ package com.tis.ibkr.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,7 +18,11 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -114,6 +119,32 @@ fun SettingsScreen(vm: SettingsViewModel = viewModel()) {
                     color = if (state.connectionOk) LbColors.Down else LbColors.Error,
                 )
             }
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        Text("显示", style = MaterialTheme.typography.titleMedium)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("涨跌颜色", color = LbColors.OnSurface, style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    if (state.redUp) "红涨绿跌（A股 / 港股习惯）" else "绿涨红跌（美股习惯）",
+                    color = LbColors.OnSurfaceMuted,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            Switch(
+                checked = state.redUp,
+                onCheckedChange = { vm.setRedUp(it) },
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = Color.White,
+                    checkedTrackColor = LbColors.Accent,
+                ),
+            )
         }
 
         Spacer(Modifier.height(8.dp))

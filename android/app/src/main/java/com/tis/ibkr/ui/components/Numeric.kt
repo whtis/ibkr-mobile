@@ -10,6 +10,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import com.tis.ibkr.ui.theme.LbColors
+import com.tis.ibkr.ui.theme.LocalRedUp
 import java.text.DecimalFormat
 import kotlin.math.abs
 
@@ -95,16 +96,24 @@ fun formatSignedPct(value: Double): String {
 }
 
 @Composable
-fun changeColor(delta: Double): Color = when {
-    delta > 0 -> LbColors.Up
-    delta < 0 -> LbColors.Down
-    else -> LbColors.Flat
+fun changeColor(delta: Double): Color {
+    val rise = if (LocalRedUp.current) LbColors.Up else LbColors.Down
+    val fall = if (LocalRedUp.current) LbColors.Down else LbColors.Up
+    return when {
+        delta > 0 -> rise
+        delta < 0 -> fall
+        else -> LbColors.Flat
+    }
 }
 
 /** Background color (with alpha) matching delta direction for color-block treatments. */
 @Composable
-fun changeBgColor(delta: Double, alpha: Float = 1.0f): Color = when {
-    delta > 0 -> LbColors.Up.copy(alpha = alpha)
-    delta < 0 -> LbColors.Down.copy(alpha = alpha)
-    else -> LbColors.Flat.copy(alpha = alpha * 0.3f)
+fun changeBgColor(delta: Double, alpha: Float = 1.0f): Color {
+    val rise = if (LocalRedUp.current) LbColors.Up else LbColors.Down
+    val fall = if (LocalRedUp.current) LbColors.Down else LbColors.Up
+    return when {
+        delta > 0 -> rise.copy(alpha = alpha)
+        delta < 0 -> fall.copy(alpha = alpha)
+        else -> LbColors.Flat.copy(alpha = alpha * 0.3f)
+    }
 }

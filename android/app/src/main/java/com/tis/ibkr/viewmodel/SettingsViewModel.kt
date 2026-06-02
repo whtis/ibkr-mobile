@@ -12,6 +12,7 @@ import kotlinx.coroutines.launch
 data class SettingsUiState(
     val backendUrl: String = "",
     val token: String = "",
+    val redUp: Boolean = true,
     val connectionOk: Boolean = false,
     val connectionMessage: String? = null,
 )
@@ -28,6 +29,13 @@ class SettingsViewModel : ViewModel() {
                 _state.update { it.copy(backendUrl = s.backendUrl, token = s.token) }
             }
         }
+        viewModelScope.launch {
+            app.settingsStore.redUp.collect { v -> _state.update { it.copy(redUp = v) } }
+        }
+    }
+
+    fun setRedUp(value: Boolean) {
+        viewModelScope.launch { app.settingsStore.setRedUp(value) }
     }
 
     suspend fun save(url: String, token: String) {
