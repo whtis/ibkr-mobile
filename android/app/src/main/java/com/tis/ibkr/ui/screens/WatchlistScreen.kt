@@ -40,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.tis.ibkr.data.api.Quote
@@ -208,8 +209,15 @@ private fun WatchlistRow(item: WatchlistItem, quote: Quote?, sparkline: List<Dou
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1.5f)) {
-                Text(item.name, color = LbColors.OnSurface, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                Text("${item.symbol} · ${item.exchange.ifBlank { "—" }}", color = LbColors.OnSurfaceMuted, style = MaterialTheme.typography.bodySmall, maxLines = 1)
+                // Ticker first (never truncated), company name secondary.
+                Text(item.symbol, color = LbColors.OnSurface, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                Text(
+                    item.name.ifBlank { item.exchange.ifBlank { "—" } },
+                    color = LbColors.OnSurfaceMuted,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
             Sparkline(
                 points = sparkline,
