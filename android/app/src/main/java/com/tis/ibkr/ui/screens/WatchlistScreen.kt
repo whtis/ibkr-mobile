@@ -8,7 +8,9 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -32,11 +34,13 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.tis.ibkr.data.api.Quote
 import com.tis.ibkr.data.db.WatchlistItem
+import com.tis.ibkr.ui.chart.Sparkline
 import com.tis.ibkr.ui.components.ChangePctBlock
 import com.tis.ibkr.ui.components.NumericText
 import com.tis.ibkr.ui.components.PulsePriceText
 import com.tis.ibkr.ui.components.changeColor
 import com.tis.ibkr.ui.components.formatPrice3
+import com.tis.ibkr.ui.components.formatSignedPct
 import com.tis.ibkr.ui.components.formatSignedPrice
 import com.tis.ibkr.ui.theme.LbColors
 import com.tis.ibkr.viewmodel.WatchlistViewModel
@@ -81,6 +85,7 @@ fun WatchlistScreen(
                         WatchlistRow(
                             item = item,
                             quote = state.quotes[item.symbol],
+                            sparkline = state.sparklines[item.symbol].orEmpty(),
                             onClick = { onOpenSymbol(item.symbol, item.exchange, item.currency) },
                         )
                     }
@@ -103,18 +108,25 @@ private fun ColumnHeaders() {
 }
 
 @Composable
-private fun WatchlistRow(item: WatchlistItem, quote: Quote?, onClick: () -> Unit) {
+private fun WatchlistRow(item: WatchlistItem, quote: Quote?, sparkline: List<Double>, onClick: () -> Unit) {
     val change = quote?.change ?: 0.0
     val color = changeColor(change)
+    val ext = extendedHours(quote)
     Column(modifier = Modifier.clickable(onClick = onClick)) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(modifier = Modifier.weight(2f)) {
+            Column(modifier = Modifier.weight(1.5f)) {
                 Text(item.name, color = LbColors.OnSurface, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                Text("${item.symbol} · ${item.exchange.ifBlank { "—" }}", color = LbColors.OnSurfaceMuted, style = MaterialTheme.typography.bodySmall)
+                Text("${item.symbol} · ${item.exchange.ifBlank { "—" }}", color = LbColors.OnSurfaceMuted, style = MaterialTheme.typography.bodySmall, maxLines = 1)
             }
+            Sparkline(
+                points = sparkline,
+                color = if (sparkline.size >= 2) changeColor(sparkline.last() - sparkline.first()) else LbColors.Flat,
+                baseline = quote?.prevClose,
+                modifier = Modifier.width(54.dp).height(28.dp).padding(horizontal = 6.dp),
+            )
             Column(modifier = Modifier.weight(1.2f), horizontalAlignment = Alignment.End) {
                 PulsePriceText(
                     price = quote?.last,
@@ -123,12 +135,26 @@ private fun WatchlistRow(item: WatchlistItem, quote: Quote?, onClick: () -> Unit
                 )
                 NumericText(text = formatSignedPrice(change), color = color, style = MaterialTheme.typography.bodySmall)
             }
-            androidx.compose.foundation.layout.Box(modifier = Modifier.weight(1.2f), contentAlignment = Alignment.CenterEnd) {
+            Column(modifier = Modifier.weight(1.3f), horizontalAlignment = Alignment.End) {
                 ChangePctBlock(pct = quote?.changePct ?: 0.0)
+                ext?.let { (pct, label) ->
+                    NumericText(
+                        text = "${formatSignedPct(pct)} $label",
+                        color = LbColors.OnSurfaceMuted,
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                }
             }
         }
         HorizontalDivider(color = LbColors.Outline.copy(alpha = 0.3f), thickness = 0.5.dp)
     }
+}
+
+/** Extended-hours change to surface under the % block: post-market wins over pre-market. */
+private fun extendedHours(q: Quote?): Pair<Double, String>? {
+    q?.postMarket?.changePct?.let { return it to "盘后" }
+    q?.preMarket?.changePct?.let { return it to "盘前" }
+    return null
 }
 
 @Composable

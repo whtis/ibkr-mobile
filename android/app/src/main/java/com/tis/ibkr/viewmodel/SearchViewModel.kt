@@ -17,6 +17,8 @@ data class SearchUiState(
     val loading: Boolean = false,
     val error: String? = null,
     val results: List<SearchResult> = emptyList(),
+    val history: List<String> = emptyList(),
+    val hot: List<String> = emptyList(),
 )
 
 class SearchViewModel : ViewModel() {
@@ -26,6 +28,24 @@ class SearchViewModel : ViewModel() {
     val state: StateFlow<SearchUiState> = _state.asStateFlow()
 
     private var debounceJob: Job? = null
+
+    init {
+        _state.update { it.copy(hot = MarketUniverse.HOT.take(10)) }
+        viewModelScope.launch {
+            app.settingsStore.searchHistory.collect { h -> _state.update { it.copy(history = h) } }
+        }
+    }
+
+    /** Record an intentional pick (typed query, or the symbol when opened from a chip). */
+    fun onResultOpened(symbol: String) {
+        viewModelScope.launch {
+            app.settingsStore.pushSearchHistory(_state.value.query.ifBlank { symbol })
+        }
+    }
+
+    fun clearHistory() {
+        viewModelScope.launch { app.settingsStore.clearSearchHistory() }
+    }
 
     fun updateQuery(q: String) {
         _state.update { it.copy(query = q) }
