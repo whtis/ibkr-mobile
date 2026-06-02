@@ -31,6 +31,28 @@ class SettingsStore(private val context: Context) {
         }
     }
 
+    // --- Search history (most-recent-first, deduped, capped) ---
+    private val keyHistory = stringPreferencesKey("search_history")
+
+    val searchHistory: Flow<List<String>> = context.dataStore.data.map { prefs ->
+        prefs[keyHistory]?.split("\n")?.filter { it.isNotBlank() } ?: emptyList()
+    }
+
+    suspend fun pushSearchHistory(q: String) {
+        val query = q.trim()
+        if (query.isEmpty()) return
+        context.dataStore.edit { prefs ->
+            val cur = prefs[keyHistory]?.split("\n")?.filter { it.isNotBlank() } ?: emptyList()
+            prefs[keyHistory] = (listOf(query) + cur.filterNot { it.equals(query, ignoreCase = true) })
+                .take(12)
+                .joinToString("\n")
+        }
+    }
+
+    suspend fun clearSearchHistory() {
+        context.dataStore.edit { it.remove(keyHistory) }
+    }
+
     private fun Preferences.toSettings() = Settings(
         backendUrl = this[keyUrl]?.takeIf { it.isNotBlank() } ?: DEFAULT_URL,
         token = this[keyToken]?.takeIf { it.isNotBlank() } ?: DEFAULT_TOKEN,

@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -22,6 +24,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
@@ -49,6 +52,7 @@ import com.tis.ibkr.data.api.SearchResult
 import com.tis.ibkr.ui.theme.LbColors
 import com.tis.ibkr.viewmodel.SearchViewModel
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SearchScreen(
     onBack: () -> Unit,
@@ -143,12 +147,43 @@ fun SearchScreen(
                 color = LbColors.Error,
                 style = MaterialTheme.typography.bodyMedium,
             )
-            state.query.isBlank() -> Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
-                Text(
-                    "输入股票代码或公司名搜索\n美股 TSLA / alibaba · 港股 700 · 关键字也行",
-                    color = LbColors.OnSurfaceMuted,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
+            state.query.isBlank() -> Column(Modifier.fillMaxWidth().padding(16.dp)) {
+                if (state.history.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text("历史记录", color = LbColors.OnSurfaceMuted, style = MaterialTheme.typography.bodySmall)
+                        Icon(
+                            Icons.Outlined.Delete,
+                            contentDescription = "清空历史",
+                            tint = LbColors.OnSurfaceMuted,
+                            modifier = Modifier.size(18.dp).clip(CircleShape).clickable { vm.clearHistory() },
+                        )
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        state.history.forEach { h -> SearchChip(h) { vm.updateQuery(h) } }
+                    }
+                    Spacer(Modifier.height(20.dp))
+                }
+                Text("热门股票", color = LbColors.OnSurfaceMuted, style = MaterialTheme.typography.bodySmall)
+                Spacer(Modifier.height(8.dp))
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    state.hot.forEach { sym ->
+                        SearchChip(sym) {
+                            vm.onResultOpened(sym)
+                            onOpenSymbol(sym, "SMART", "USD")
+                        }
+                    }
+                }
             }
             state.results.isEmpty() -> Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
                 Text("没有匹配的结果", color = LbColors.OnSurfaceMuted, style = MaterialTheme.typography.bodyMedium)
@@ -158,6 +193,7 @@ fun SearchScreen(
                     SearchRow(
                         result = r,
                         onClick = {
+                            vm.onResultOpened(r.symbol)
                             onOpenSymbol(
                                 r.symbol,
                                 r.primaryExchange ?: "SMART",
@@ -169,6 +205,19 @@ fun SearchScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun SearchChip(label: String, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(LbColors.SurfaceElevated)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+    ) {
+        Text(label, color = LbColors.OnSurface, style = MaterialTheme.typography.bodyMedium, maxLines = 1)
     }
 }
 
