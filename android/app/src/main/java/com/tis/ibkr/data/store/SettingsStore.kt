@@ -2,6 +2,7 @@ package com.tis.ibkr.data.store
 
 import android.content.Context
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -51,6 +52,15 @@ class SettingsStore(private val context: Context) {
 
     suspend fun clearSearchHistory() {
         context.dataStore.edit { it.remove(keyHistory) }
+    }
+
+    // --- Up/down color convention: true = red-up/green-down (default), false = green-up ---
+    private val keyRedUp = booleanPreferencesKey("red_up")
+
+    val redUp: Flow<Boolean> = context.dataStore.data.map { it[keyRedUp] ?: true }
+
+    suspend fun setRedUp(value: Boolean) {
+        context.dataStore.edit { it[keyRedUp] = value }
     }
 
     private fun Preferences.toSettings() = Settings(
