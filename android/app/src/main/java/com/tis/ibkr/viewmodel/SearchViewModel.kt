@@ -48,9 +48,12 @@ class SearchViewModel : ViewModel() {
     }
 
     fun updateQuery(q: String) {
-        _state.update { it.copy(query = q) }
+        // Backend caps `q` at 32 chars (returns 422 beyond that); cap here so an
+        // over-long query never round-trips into a raw error.
+        val capped = q.take(32)
+        _state.update { it.copy(query = capped) }
         debounceJob?.cancel()
-        val trimmed = q.trim()
+        val trimmed = capped.trim()
         if (trimmed.isEmpty()) {
             _state.update { it.copy(results = emptyList(), error = null, loading = false) }
             return
@@ -71,9 +74,16 @@ class SearchViewModel : ViewModel() {
             }
     }
 
-    private fun friendlyError(e: Throwable): String = when {
-        e.message?.contains("401") == true -> "Token 错误，去「我的」检查"
-        e.message?.contains("502") == true -> "IBKR 暂时连不上，稍后重试"
-        else -> e.message ?: e::class.simpleName ?: "未知错误"
+    private fun friendlyError(e: Throwable): String {
+        val m = e.message ?: ""
+        return when {
+            m.contains("401") -> "Token 错误，去「我的」检查"
+            m.contains("422") -> "搜索词无效，换个关键词试试"
+            m.contains("502") || m.contains("503") -> "行情服务暂时连不上，稍后重试"
+            m.contains("Failed to connect", ignoreCase = true) ||
+                m.contains("ConnectException") ||
+                m.contains("UnknownHost") -> "连不上后端，检查「我的」里的地址"
+            else -> "搜索失败，稍后重试"  // never surface the raw client/JSON dump
+        }
     }
 }
