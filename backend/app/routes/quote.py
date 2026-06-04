@@ -141,6 +141,8 @@ async def quotes(
             volume=float(q.volume) if q.volume is not None else None,
             change=change,
             change_pct=change_pct,
+            pre_market=_ext_quote(getattr(q, "pre_market_quote", None), prev_close),
+            post_market=_ext_quote(getattr(q, "post_market_quote", None), prev_close),
             timestamp=q.timestamp.isoformat() if q.timestamp else now_iso,
         ))
     return out
