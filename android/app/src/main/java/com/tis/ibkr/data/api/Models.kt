@@ -157,6 +157,7 @@ data class OrderResponse(
     val price: Double? = null,
     val tif: String = "DAY",
     @SerialName("outside_rth") val outsideRth: Boolean = false,
+    val message: String? = null,
 )
 
 @Serializable

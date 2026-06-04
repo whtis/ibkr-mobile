@@ -152,11 +152,21 @@ fun OrderFormScreen(
                     onBack()
                 }) { Text("完成", color = LbColors.Accent) }
             },
-            title = { Text("订单已提交", color = LbColors.OnSurface) },
+            title = {
+                val ok = resp.status in setOf("Submitted", "PreSubmitted", "PendingSubmit", "Filled")
+                Text(
+                    if (ok) "订单已提交" else "订单未提交成功",
+                    color = if (ok) LbColors.OnSurface else LbColors.Warning,
+                )
+            },
             text = {
                 Column {
                     Text("订单 ID: ${resp.orderId}", color = LbColors.OnSurface)
-                    Text("状态: ${resp.status}", color = LbColors.OnSurfaceMuted)
+                    Text("状态: ${orderStatusLabel(resp.status)}", color = LbColors.OnSurfaceMuted)
+                    resp.message?.takeIf { it.isNotBlank() }?.let {
+                        androidx.compose.foundation.layout.Spacer(Modifier.height(6.dp))
+                        Text(it, color = LbColors.OnSurfaceMuted, style = MaterialTheme.typography.bodySmall)
+                    }
                 }
             },
             containerColor = LbColors.Surface,
@@ -753,4 +763,16 @@ private fun AccountDelta(label: String, before: Double, after: Double) {
             NumericText(text = "%+.2f".format(delta), color = deltaColor, style = MaterialTheme.typography.bodySmall)
         }
     }
+}
+
+private fun orderStatusLabel(s: String): String = when (s) {
+    "Submitted" -> "已提交（挂单中）"
+    "PreSubmitted" -> "待提交"
+    "PendingSubmit" -> "提交中"
+    "Filled" -> "已成交"
+    "ValidationError" -> "校验未通过（见下方提示）"
+    "Inactive" -> "未激活"
+    "Cancelled", "ApiCancelled" -> "已取消"
+    "Rejected" -> "已拒绝"
+    else -> s
 }
