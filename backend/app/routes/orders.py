@@ -44,6 +44,14 @@ class OrderResponse(BaseModel):
     price: float | None = None
     tif: str = "DAY"
     outside_rth: bool = False
+    message: str | None = None  # latest IB log/validation message, if any
+
+
+def _last_log_message(trade) -> str | None:
+    if not trade.log:
+        return None
+    texts = [e.message for e in trade.log if getattr(e, "message", None)]
+    return texts[-1] if texts else None
 
 
 def _trade_to_response(trade) -> OrderResponse:
@@ -62,6 +70,7 @@ def _trade_to_response(trade) -> OrderResponse:
         price=float(o.lmtPrice) if o.lmtPrice else None,
         tif=str(o.tif or "DAY"),
         outside_rth=bool(o.outsideRth),
+        message=_last_log_message(trade),
     )
 
 
@@ -105,12 +114,23 @@ async def place_order(req: PlaceOrderRequest) -> OrderResponse:
         req.side, req.symbol, req.order_type, req.quantity, req.price, req.tif, req.outside_rth,
     )
     trade = ib.placeOrder(resolved, order)
-    await asyncio.sleep(0.6)
+
+    # Wait for the order to settle past the transient submit phase. ib_async can
+    # briefly report "ValidationError" (PreSubmitted -> ValidationError -> Submitted
+    # when the validation is auto-ignorable), so a fixed short sleep would snapshot
+    # that transient state and mislead the client. Poll until it settles.
+    settled = {"Submitted", "Filled", "Cancelled", "ApiCancelled", "Inactive", "PendingCancel"}
+    for _ in range(40):  # up to ~4s
+        await asyncio.sleep(0.1)
+        if trade.orderStatus.status in settled:
+            break
 
     status = trade.orderStatus.status
-    if status in ("Rejected", "ApiCancelled", "Cancelled"):
-        msg = trade.log[-1].message if trade.log else "(no detail)"
-        raise HTTPException(400, f"order rejected: {status} — {msg}")
+    msg = _last_log_message(trade)
+    if status in ("Rejected", "ApiCancelled", "Cancelled", "Inactive"):
+        raise HTTPException(400, f"order rejected: {status} — {msg or '(no detail)'}")
+    # A lingering ValidationError isn't necessarily fatal (order may still be live),
+    # but surface IB's message so the client can show why instead of a bare status.
     return _trade_to_response(trade)
 
 
