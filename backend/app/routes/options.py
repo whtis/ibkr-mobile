@@ -54,6 +54,7 @@ async def chain(
         if ps:
             contract_syms.append(ps)
     quotes = []
+    quote_err: Exception | None = None
     if contract_syms:
         # option_quote takes 1-200 symbols at a time; chunk if needed
         chunk = 200
@@ -61,8 +62,17 @@ async def chain(
             try:
                 quotes.extend(await lb_client.option_quote(contract_syms[i:i + chunk]))
             except Exception as e:
+                quote_err = e
                 log.warning("option_quote chunk failed: %s", e)
     qmap = {getattr(q, "symbol", ""): q for q in quotes}
+    # Don't silently return a chain full of nulls — surface why the quotes failed.
+    if contract_syms and not qmap:
+        if quote_err is not None:
+            raise HTTPException(502, f"期权行情拉取失败（可能无期权行情权限）: {quote_err}")
+        log.warning(
+            "option_quote returned %d quotes for %d symbols but none matched (e.g. %s)",
+            len(quotes), len(contract_syms), contract_syms[0] if contract_syms else "-",
+        )
 
     out: list[OptionContract] = []
     for strike, cs, ps in by_strike:
