@@ -28,14 +28,20 @@ import com.tis.ibkr.ui.screens.SettingsScreen
 import com.tis.ibkr.ui.screens.StockDetailScreen
 import com.tis.ibkr.ui.screens.WatchlistScreen
 import com.tis.ibkr.ui.theme.LbColors
+import androidx.compose.foundation.layout.Row
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.Alignment
 
 @Composable
 fun RootScreen() {
     val nav = rememberNavController()
+    val tradingMode by IbkrApp.instance.tradingMode.mode.collectAsState()
     val backStack by nav.currentBackStackEntryAsState()
     val currentRoute = backStack?.destination?.route
     val showBottomBar = currentRoute in Tab.entries.map { it.route }
 
+    Column(Modifier.fillMaxSize()) {
+    if (tradingMode == TradingMode.LIVE) LiveModeBanner()
     Scaffold(
         bottomBar = {
             if (showBottomBar) {
@@ -192,4 +198,25 @@ fun RootScreen() {
             }
         }
     }
+    }
+
 }
+
+@Composable
+private fun LiveModeBanner() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(LbColors.Error)
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            "● 实盘交易  LIVE · 谨慎操作",
+            color = Color.White,
+            fontWeight = FontWeight.SemiBold,
+            style = MaterialTheme.typography.labelLarge,
+        )
+    }
+}
+

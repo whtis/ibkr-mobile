@@ -59,6 +59,9 @@ import com.tis.ibkr.ui.components.formatSignedPct
 import com.tis.ibkr.ui.theme.LbColors
 import com.tis.ibkr.viewmodel.OrderFormUiState
 import com.tis.ibkr.viewmodel.OrderFormViewModel
+import androidx.compose.foundation.border
+import com.tis.ibkr.IbkrApp
+import com.tis.ibkr.data.repo.TradingMode
 
 private val ORDER_TYPE_LABELS = mapOf("LMT" to "限价单", "MKT" to "市价单")
 private val TIF_LABELS = mapOf("DAY" to "当日有效", "GTC" to "至取消")
@@ -87,6 +90,9 @@ fun OrderFormScreen(
         },
     )
     val state by vm.state.collectAsState()
+    val tradingMode by IbkrApp.instance.tradingMode.mode.collectAsState()
+    val isLive = tradingMode == TradingMode.LIVE
+    var showLiveConfirm by remember { mutableStateOf(false) }
 
     var showPreview by remember { mutableStateOf(false) }
     val previewSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -126,8 +132,50 @@ fun OrderFormScreen(
         Spacer(Modifier.height(12.dp))
         SubmitBar(
             state = state,
-            onSubmit = { vm.submit() },
+            isLive = isLive,
+            onSubmit = { if (isLive) showLiveConfirm = true else vm.submit() },
             onPreview = { showPreview = true },
+        )
+    }
+
+    // -- Live mode confirmation dialog. Only paths to vm.submit() in live mode
+    // go through this; paper-mode submit is direct (existing behavior).
+    if (showLiveConfirm) {
+        AlertDialog(
+            onDismissRequest = { showLiveConfirm = false },
+            title = {
+                Text("⚠ 实盘下单确认", color = LbColors.Error, fontWeight = FontWeight.Bold)
+            },
+            text = {
+                val qty = state.quantityText.ifBlank { "?" }
+                val px = state.priceText.ifBlank { state.quote?.last?.toString() ?: "?" }
+                val amt = state.estimatedAmount?.let { "%.2f".format(it) } ?: "?"
+                val sideZh = if (state.side == "BUY") "买入" else "卖出"
+                Text(
+                    "$sideZh ${state.symbol} × $qty @ $px ${state.currency}\n" +
+                    "估计金额 $amt ${state.currency}\n\n" +
+                    "这是实盘交易,资金真实流动,确认提交吗?",
+                    color = LbColors.OnSurface,
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showLiveConfirm = false
+                        vm.submit()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = LbColors.Error,
+                        contentColor = Color.White,
+                    ),
+                ) { Text("确认实盘下单") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLiveConfirm = false }) {
+                    Text("取消", color = LbColors.OnSurfaceMuted)
+                }
+            },
+            containerColor = LbColors.Surface,
         )
     }
 
@@ -662,17 +710,27 @@ private fun <T> DropdownRow(
 // ---------------- Submit bar ----------------
 
 @Composable
-private fun SubmitBar(state: OrderFormUiState, onSubmit: () -> Unit, onPreview: () -> Unit) {
+private fun SubmitBar(
+    state: OrderFormUiState,
+    isLive: Boolean,
+    onSubmit: () -> Unit,
+    onPreview: () -> Unit,
+) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         val color = if (state.side == "BUY") LbColors.Up else LbColors.Down
-        val label = if (state.side == "BUY") "买入下单" else "卖出下单"
+        val baseLabel = if (state.side == "BUY") "买入下单" else "卖出下单"
+        val label = if (isLive) "$baseLabel · LIVE" else baseLabel
         Button(
             onClick = onSubmit,
             enabled = state.canSubmit,
-            modifier = Modifier.weight(1f).height(48.dp).clip(RoundedCornerShape(24.dp)),
+            modifier = Modifier
+                .weight(1f)
+                .height(48.dp)
+                .clip(RoundedCornerShape(24.dp))
+                .then(if (isLive) Modifier.border(2.dp, LbColors.Error, RoundedCornerShape(24.dp)) else Modifier),
             colors = ButtonDefaults.buttonColors(
                 containerColor = color,
                 contentColor = Color.White,
