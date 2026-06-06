@@ -4,8 +4,15 @@ import android.app.Application
 import com.tis.ibkr.data.api.IbkrApi
 import com.tis.ibkr.data.api.QuoteStream
 import com.tis.ibkr.data.db.AppDatabase
+import com.tis.ibkr.data.repo.TradingModeRepository
 import com.tis.ibkr.data.repo.WatchlistRepository
 import com.tis.ibkr.data.store.SettingsStore
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 
 class IbkrApp : Application() {
 
@@ -21,6 +28,11 @@ class IbkrApp : Application() {
     lateinit var quoteStream: QuoteStream
         private set
 
+    lateinit var tradingMode: TradingModeRepository
+        private set
+
+    val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     override fun onCreate() {
         super.onCreate()
         instance = this
@@ -28,6 +40,13 @@ class IbkrApp : Application() {
         api = IbkrApi(settingsStore)
         watchlist = WatchlistRepository(AppDatabase.get(applicationContext).watchlistDao())
         quoteStream = QuoteStream(settingsStore)
+        tradingMode = TradingModeRepository(api)
+        appScope.launch {
+            while (isActive) {
+                tradingMode.refresh()
+                delay(30_000)
+            }
+        }
     }
 
     companion object {

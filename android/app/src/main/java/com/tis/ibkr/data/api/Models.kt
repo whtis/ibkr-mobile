@@ -7,6 +7,9 @@ import kotlinx.serialization.Serializable
 data class Health(
     val ok: Boolean,
     @SerialName("ib_connected") val ibConnected: Boolean,
+    @SerialName("mock_mode") val mockMode: Boolean = false,
+    @SerialName("account_id") val accountId: String? = null,
+    @SerialName("is_live") val isLive: Boolean = false,
 )
 
 @Serializable
