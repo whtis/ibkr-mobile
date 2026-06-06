@@ -1,5 +1,7 @@
 import asyncio
 import logging
+import time
+from collections import deque
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -7,7 +9,9 @@ from ib_async import LimitOrder, MarketOrder, Option, Stock
 from pydantic import BaseModel
 
 from ..auth import require_token
+from ..config import settings
 from ..ibkr import client
+from ..longbridge import lb_client, to_lb_symbol
 
 log = logging.getLogger(__name__)
 
@@ -74,8 +78,92 @@ def _trade_to_response(trade) -> OrderResponse:
     )
 
 
+
+# --- Safety guards: per-order qty + notional cap, plus per-process rate limit.
+#
+# Rationale: even on tailnet-only with a rotated token, a stolen token still
+# means anybody can hit /orders. These guards bound the worst-case blast
+# radius — a single mistake or compromised token cannot drain the account.
+# Tunable via .env (see app/config.py).
+
+_order_timestamps: deque[float] = deque()
+
+
+def _rate_limit_check() -> None:
+    """Sliding-1-min window. In-process state — fine as long as we run one uvicorn."""
+    limit = settings.order_rate_limit_per_min
+    if not settings.enable_order_guards or limit <= 0:
+        return
+    now = time.monotonic()
+    cutoff = now - 60.0
+    while _order_timestamps and _order_timestamps[0] < cutoff:
+        _order_timestamps.popleft()
+    if len(_order_timestamps) >= limit:
+        log.warning("order rate limit hit (%d in last 60s)", len(_order_timestamps))
+        raise HTTPException(429, f"order rate limit exceeded: {limit}/minute")
+    _order_timestamps.append(now)
+
+
+async def _guard_quantity_and_notional(req: "PlaceOrderRequest") -> None:
+    """Reject before reaching IB if quantity or estimated notional is too large.
+
+    For LMT we use the limit price; for MKT we fetch the Longbridge last quote.
+    Notional check is only strict when currency == USD (we don't FX-convert);
+    other currencies only log so the order still goes through after qty check.
+    """
+    if not settings.enable_order_guards:
+        return
+    if req.quantity <= 0:
+        raise HTTPException(422, "quantity must be > 0")
+    if req.quantity > settings.max_order_qty:
+        raise HTTPException(
+            422,
+            f"quantity {req.quantity} exceeds per-order max {settings.max_order_qty}",
+        )
+
+    # Best-effort estimate of price for notional calculation.
+    est_price: float | None = req.price
+    if est_price is None and lb_client.is_configured():
+        try:
+            lb_sym = to_lb_symbol(req.symbol, req.currency)
+            quotes = await lb_client.quote([lb_sym])
+            if quotes:
+                last = getattr(quotes[0], "last_done", None)
+                if last is not None:
+                    est_price = float(last)
+        except Exception as e:  # noqa: BLE001
+            log.warning("notional guard: quote fetch failed for %s: %s", req.symbol, e)
+
+    if est_price is None:
+        log.warning(
+            "notional guard: could not determine est_price for %s (MKT order, no quote) — qty-only check",
+            req.symbol,
+        )
+        return
+
+    multiplier = 100 if req.sec_type == "OPT" else 1
+    notional = req.quantity * est_price * multiplier
+
+    if req.currency == "USD":
+        if notional > settings.max_order_notional_usd:
+            raise HTTPException(
+                422,
+                f"estimated notional {notional:.0f} USD exceeds per-order max "
+                f"{settings.max_order_notional_usd:.0f} (qty={req.quantity}, est_price={est_price})",
+            )
+    else:
+        # Non-USD: don't FX-convert; log loudly so a runaway is still visible.
+        log.warning(
+            "non-USD order: notional=%.0f %s (not converted to USD for cap check). "
+            "qty=%s est_price=%s symbol=%s",
+            notional, req.currency, req.quantity, est_price, req.symbol,
+        )
+
+
 @router.post("", response_model=OrderResponse)
 async def place_order(req: PlaceOrderRequest) -> OrderResponse:
+    _rate_limit_check()
+    await _guard_quantity_and_notional(req)
     ib = await client.ensure_connected()
     if req.sec_type == "OPT":
         if not (req.expiry and req.strike is not None and req.right):
