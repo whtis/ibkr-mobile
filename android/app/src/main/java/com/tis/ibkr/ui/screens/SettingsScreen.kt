@@ -123,6 +123,56 @@ fun SettingsScreen(vm: SettingsViewModel = viewModel()) {
 
         Spacer(Modifier.height(8.dp))
 
+        Text("设备配对", style = MaterialTheme.typography.titleMedium)
+        if (state.deviceId.isNotBlank()) {
+            Text(
+                "已配对 · device_id = ${state.deviceId}",
+                color = LbColors.Down,
+                style = MaterialTheme.typography.bodySmall,
+            )
+        } else {
+            Text(
+                "未配对 — 请先保存 URL + Token，然后点击下方按钮",
+                color = LbColors.OnSurfaceMuted,
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+        Button(
+            onClick = { vm.pairDevice() },
+            enabled = !state.pairing && state.token.isNotBlank() && state.backendUrl.isNotBlank(),
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = LbColors.Accent,
+                contentColor = LbColors.OnSurface,
+            ),
+        ) {
+            Text(
+                if (state.pairing) "配对中..."
+                else if (state.deviceId.isNotBlank()) "重新配对（覆盖现有 device_id）"
+                else "配对此设备"
+            )
+        }
+        if (state.deviceId.isNotBlank()) {
+            Button(
+                onClick = { vm.clearPairing() },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = LbColors.SurfaceElevated,
+                    contentColor = LbColors.OnSurface,
+                ),
+            ) { Text("清除本机配对") }
+        }
+        state.pairMessage?.let { msg ->
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = LbColors.SurfaceElevated),
+            ) {
+                Text(msg, modifier = Modifier.padding(12.dp), color = LbColors.OnSurface)
+            }
+        }
+
+        Spacer(Modifier.height(8.dp))
+
         Text("显示", style = MaterialTheme.typography.titleMedium)
         Row(
             modifier = Modifier.fillMaxWidth(),
