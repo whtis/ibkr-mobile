@@ -38,6 +38,13 @@ class IbkrApp : Application() {
         instance = this
         settingsStore = SettingsStore(applicationContext)
         api = IbkrApi(settingsStore)
+        // Keep the IbkrApi'''s cached device_id in sync with persisted Settings so
+        // the request-signing interceptor can read it synchronously.
+        appScope.launch {
+            settingsStore.flow.collect { s ->
+                api.setCachedDeviceId(s.deviceId)
+            }
+        }
         watchlist = WatchlistRepository(AppDatabase.get(applicationContext).watchlistDao())
         quoteStream = QuoteStream(settingsStore)
         tradingMode = TradingModeRepository(api)

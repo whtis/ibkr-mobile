@@ -14,14 +14,17 @@ private val Context.dataStore by preferencesDataStore(name = "ibkr_settings")
 data class Settings(
     val backendUrl: String,
     val token: String,
+    val deviceId: String,
 ) {
     fun isValid(): Boolean = backendUrl.isNotBlank() && token.isNotBlank()
+    val isPaired: Boolean get() = deviceId.isNotBlank()
 }
 
 class SettingsStore(private val context: Context) {
 
     private val keyUrl = stringPreferencesKey("backend_url")
     private val keyToken = stringPreferencesKey("api_token")
+    private val keyDeviceId = stringPreferencesKey("device_id")
 
     val flow: Flow<Settings> = context.dataStore.data.map { it.toSettings() }
 
@@ -66,7 +69,16 @@ class SettingsStore(private val context: Context) {
     private fun Preferences.toSettings() = Settings(
         backendUrl = this[keyUrl]?.takeIf { it.isNotBlank() } ?: DEFAULT_URL,
         token = this[keyToken]?.takeIf { it.isNotBlank() } ?: DEFAULT_TOKEN,
+        deviceId = this[keyDeviceId] ?: "",
     )
+
+    suspend fun setDeviceId(deviceId: String) {
+        context.dataStore.edit { it[keyDeviceId] = deviceId }
+    }
+
+    suspend fun clearPairing() {
+        context.dataStore.edit { it.remove(keyDeviceId) }
+    }
 
     companion object {
         const val DEFAULT_URL = ""

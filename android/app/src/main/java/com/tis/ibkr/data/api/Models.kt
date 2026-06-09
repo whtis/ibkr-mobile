@@ -212,3 +212,13 @@ data class SearchResult(
     @SerialName("derivative_sec_types") val derivativeSecTypes: List<String> = emptyList(),
     val name: String? = null,
 )
+
+@Serializable
+data class PairRequest(val label: String? = null)
+
+@Serializable
+data class PairResponse(
+    @SerialName("device_id") val deviceId: String,
+    @SerialName("hmac_key_hex") val hmacKeyHex: String,
+)
+

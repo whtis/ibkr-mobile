@@ -43,16 +43,31 @@ class IbkrApi(private val settingsStore: SettingsStore) {
             exponentialDelay()
         }
         install(Logging) { level = LogLevel.INFO }
+        install(RequestSigning) {
+            deviceIdProvider = {
+                // settingsStore.flow is a Flow; for fast synchronous reads in the
+                // interceptor we cache the last device_id whenever it changes.
+                cachedDeviceId
+            }
+        }
         defaultRequest {
             contentType(ContentType.Application.Json)
         }
+    }
+
+    /** Updated by IbkrApp on every SettingsStore emission so the signing
+     *  plugin can attach X-Device-ID without a suspending read. */
+    @Volatile
+    private var cachedDeviceId: String? = null
+
+    fun setCachedDeviceId(deviceId: String?) {
+        cachedDeviceId = deviceId?.takeIf { it.isNotBlank() }
     }
 
     private suspend fun base(): String = settingsStore.flow.first().backendUrl
     private suspend fun token(): String = settingsStore.flow.first().token
 
     private suspend fun authed(path: String) = client.get("${base()}$path") {
-        header(HttpHeaders.Authorization, "Bearer ${token()}")
     }
 
     suspend fun health(): Health = client.get("${base()}/health").body()
@@ -66,35 +81,30 @@ class IbkrApi(private val settingsStore: SettingsStore) {
     suspend fun bars(symbol: String, period: String = "1d"): List<Bar> = client.get(
         "${base()}/bars/${symbol.uppercase()}",
     ) {
-        header(HttpHeaders.Authorization, "Bearer ${token()}")
         url { parameters.append("period", period) }
     }.body()
 
     suspend fun staticInfo(symbol: String, currency: String = "USD"): StaticInfo = client.get(
         "${base()}/static/${symbol.uppercase()}",
     ) {
-        header(HttpHeaders.Authorization, "Bearer ${token()}")
         url { parameters.append("currency", currency) }
     }.body()
 
     suspend fun depth(symbol: String, currency: String = "USD"): Depth = client.get(
         "${base()}/depth/${symbol.uppercase()}",
     ) {
-        header(HttpHeaders.Authorization, "Bearer ${token()}")
         url { parameters.append("currency", currency) }
     }.body()
 
     suspend fun intraday(symbol: String, currency: String = "USD"): List<IntradayPoint> = client.get(
         "${base()}/intraday/${symbol.uppercase()}",
     ) {
-        header(HttpHeaders.Authorization, "Bearer ${token()}")
         url { parameters.append("currency", currency) }
     }.body()
 
     suspend fun trades(symbol: String, count: Int = 30, currency: String = "USD"): List<TradeTick> = client.get(
         "${base()}/trades/${symbol.uppercase()}",
     ) {
-        header(HttpHeaders.Authorization, "Bearer ${token()}")
         url {
             parameters.append("count", count.toString())
             parameters.append("currency", currency)
@@ -104,14 +114,12 @@ class IbkrApi(private val settingsStore: SettingsStore) {
     suspend fun optionExpiries(symbol: String, currency: String = "USD"): List<OptionExpiry> = client.get(
         "${base()}/options/expiries/${symbol.uppercase()}",
     ) {
-        header(HttpHeaders.Authorization, "Bearer ${token()}")
         url { parameters.append("currency", currency) }
     }.body()
 
     suspend fun optionChain(symbol: String, expiry: String, currency: String = "USD"): List<OptionContract> = client.get(
         "${base()}/options/chain/${symbol.uppercase()}",
     ) {
-        header(HttpHeaders.Authorization, "Bearer ${token()}")
         url {
             parameters.append("expiry", expiry)
             parameters.append("currency", currency)
@@ -121,7 +129,6 @@ class IbkrApi(private val settingsStore: SettingsStore) {
     suspend fun quotes(symbols: List<String>, currency: String = "USD"): List<Quote> {
         if (symbols.isEmpty()) return emptyList()
         return client.get("${base()}/quotes") {
-            header(HttpHeaders.Authorization, "Bearer ${token()}")
             url {
                 parameters.append("symbols", symbols.joinToString(",") { it.uppercase() })
                 parameters.append("currency", currency)
@@ -132,7 +139,6 @@ class IbkrApi(private val settingsStore: SettingsStore) {
     suspend fun searchSymbols(q: String, limit: Int = 10): List<SearchResult> = client.get(
         "${base()}/search",
     ) {
-        header(HttpHeaders.Authorization, "Bearer ${token()}")
         url {
             parameters.append("q", q)
             parameters.append("limit", limit.toString())
@@ -140,23 +146,31 @@ class IbkrApi(private val settingsStore: SettingsStore) {
     }.body()
 
     suspend fun placeOrder(req: PlaceOrderRequest): OrderResponse = client.post("${base()}/orders") {
-        header(HttpHeaders.Authorization, "Bearer ${token()}")
         setBody(req)
     }.body()
 
     suspend fun activeOrders(): List<OrderResponse> = client.get("${base()}/orders/active") {
-        header(HttpHeaders.Authorization, "Bearer ${token()}")
     }.body()
 
     suspend fun executions(symbol: String): List<ExecutionTick> = client.get(
         "${base()}/executions/${symbol.uppercase()}",
     ) {
-        header(HttpHeaders.Authorization, "Bearer ${token()}")
     }.body()
 
     suspend fun cancelOrder(orderId: Int) {
         client.delete("${base()}/orders/$orderId") {
-            header(HttpHeaders.Authorization, "Bearer ${token()}")
         }
     }
+    /**
+     * Pair this device with the backend. Uses Bearer token for one-time auth
+     * (the only remaining bearer use after the signature migration). Returns
+     * the device_id and HMAC key; caller must persist the key into Keystore.
+     */
+    suspend fun pairDevice(token: String, label: String?): PairResponse {
+        return client.post("${base()}/devices/pair") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            setBody(PairRequest(label))
+        }.body()
+    }
+
 }
