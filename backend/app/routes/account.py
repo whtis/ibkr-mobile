@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends
 
-from ..auth import require_token
+from ..auth import require_signature
 from ..ibkr import client
 from ..models import AccountSummary, Position
 
-router = APIRouter(prefix="/account", dependencies=[Depends(require_token)])
+router = APIRouter(prefix="/account", dependencies=[Depends(require_signature)])
 
 NUMERIC_TAGS = {
     "NetLiquidation": "net_liquidation",

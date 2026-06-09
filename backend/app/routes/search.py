@@ -10,11 +10,11 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from .. import eastmoney
-from ..auth import require_token
+from ..auth import require_signature
 from ..ibkr import client
 from ..models import SearchResult
 
-router = APIRouter(prefix="/search", dependencies=[Depends(require_token)])
+router = APIRouter(prefix="/search", dependencies=[Depends(require_signature)])
 
 _PREFERRED_SEC_TYPES = ("STK", "ETF")
 _KEPT_SEC_TYPES = _PREFERRED_SEC_TYPES + ("IND", "FUT")

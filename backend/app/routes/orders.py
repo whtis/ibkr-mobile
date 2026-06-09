@@ -8,14 +8,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from ib_async import LimitOrder, MarketOrder, Option, Stock
 from pydantic import BaseModel
 
-from ..auth import require_token
+from ..auth import require_signature
 from ..config import settings
 from ..ibkr import client
 from ..longbridge import lb_client, to_lb_symbol
 
 log = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/orders", dependencies=[Depends(require_token)])
+router = APIRouter(prefix="/orders", dependencies=[Depends(require_signature)])
 
 
 class PlaceOrderRequest(BaseModel):

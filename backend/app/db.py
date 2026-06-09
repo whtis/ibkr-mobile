@@ -36,7 +36,7 @@ def conn():
 
 
 def init() -> None:
-    """Create the executions table on first run."""
+    """Create the executions table + devices table on first run."""
     with conn() as c:
         c.executescript(
             """
@@ -55,9 +55,66 @@ def init() -> None:
             );
             CREATE INDEX IF NOT EXISTS idx_executions_symbol_time
                 ON executions (symbol, time);
+
+            -- HMAC signing keys per paired device. See app/auth.py require_signature.
+            CREATE TABLE IF NOT EXISTS devices (
+                device_id    TEXT PRIMARY KEY,
+                hmac_key     BLOB NOT NULL,
+                label        TEXT,
+                created_at   INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+                last_used_at INTEGER
+            );
             """
         )
     log.info("execution DB initialized at %s", DB_PATH)
+
+
+# ---- devices helpers ----
+
+def create_device(device_id: str, hmac_key: bytes, label: str | None = None) -> None:
+    with conn() as c:
+        c.execute(
+            "INSERT OR REPLACE INTO devices (device_id, hmac_key, label) VALUES (?, ?, ?)",
+            (device_id, hmac_key, label),
+        )
+
+
+def get_device_key(device_id: str) -> bytes | None:
+    with conn() as c:
+        r = c.execute("SELECT hmac_key FROM devices WHERE device_id = ?", (device_id,)).fetchone()
+        return bytes(r["hmac_key"]) if r else None
+
+
+def list_all_devices() -> list[dict]:
+    """For request-signing fallback when X-Device-ID is missing: try each."""
+    with conn() as c:
+        rows = c.execute(
+            "SELECT device_id, hmac_key, label, created_at, last_used_at FROM devices"
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def list_devices_safe() -> list[dict]:
+    """Same as list_all_devices but without the hmac_key (for /devices response)."""
+    with conn() as c:
+        rows = c.execute(
+            "SELECT device_id, label, created_at, last_used_at FROM devices ORDER BY created_at"
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def delete_device(device_id: str) -> bool:
+    with conn() as c:
+        cur = c.execute("DELETE FROM devices WHERE device_id = ?", (device_id,))
+        return cur.rowcount > 0
+
+
+def touch_device(device_id: str) -> None:
+    with conn() as c:
+        c.execute(
+            "UPDATE devices SET last_used_at = strftime('%s','now') WHERE device_id = ?",
+            (device_id,),
+        )
 
 
 def upsert_execution(
