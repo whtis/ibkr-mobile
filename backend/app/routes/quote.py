@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from datetime import datetime, timezone
 
-from ..auth import require_token
+from ..auth import require_signature
 from ..longbridge import lb_client, to_lb_symbol
 from ..models import Bar, Depth, DepthLevel, ExtendedQuote, IntradayPoint, Quote, StaticInfo, TradeTick
 
@@ -22,13 +22,13 @@ def _ext_quote(pq, prev_close):
         timestamp=pq.timestamp.isoformat() if getattr(pq, "timestamp", None) is not None else None,
     )
 
-router = APIRouter(prefix="/quote", dependencies=[Depends(require_token)])
-bars_router = APIRouter(prefix="/bars", dependencies=[Depends(require_token)])
-quotes_router = APIRouter(prefix="/quotes", dependencies=[Depends(require_token)])
-static_router = APIRouter(prefix="/static", dependencies=[Depends(require_token)])
-depth_router = APIRouter(prefix="/depth", dependencies=[Depends(require_token)])
-intraday_router = APIRouter(prefix="/intraday", dependencies=[Depends(require_token)])
-trades_router = APIRouter(prefix="/trades", dependencies=[Depends(require_token)])
+router = APIRouter(prefix="/quote", dependencies=[Depends(require_signature)])
+bars_router = APIRouter(prefix="/bars", dependencies=[Depends(require_signature)])
+quotes_router = APIRouter(prefix="/quotes", dependencies=[Depends(require_signature)])
+static_router = APIRouter(prefix="/static", dependencies=[Depends(require_signature)])
+depth_router = APIRouter(prefix="/depth", dependencies=[Depends(require_signature)])
+intraday_router = APIRouter(prefix="/intraday", dependencies=[Depends(require_signature)])
+trades_router = APIRouter(prefix="/trades", dependencies=[Depends(require_signature)])
 
 
 # ----------------------- /quote/{symbol} -----------------------

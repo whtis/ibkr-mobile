@@ -6,9 +6,9 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from .. import db
-from ..auth import require_token
+from ..auth import require_signature
 
-router = APIRouter(prefix="/executions", dependencies=[Depends(require_token)])
+router = APIRouter(prefix="/executions", dependencies=[Depends(require_signature)])
 
 
 class ExecutionTick(BaseModel):

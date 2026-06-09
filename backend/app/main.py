@@ -39,7 +39,7 @@ if settings.mock_mode:
 else:
     from . import db
     from .ibkr import client
-    from .routes import account, executions, health, options, orders, quote, search, ws_quotes
+    from .routes import account, devices, executions, health, options, orders, quote, search, ws_quotes
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -63,6 +63,7 @@ else:
     )
 
     app.include_router(health.router)
+    app.include_router(devices.router)
     app.include_router(account.router)
     app.include_router(search.router)
     app.include_router(quote.router)

@@ -3,14 +3,14 @@ from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from ..auth import require_token
+from ..auth import require_signature
 from ..longbridge import lb_client, to_lb_symbol
 from ..models import OptionContract, OptionExpiry
 
 log = logging.getLogger(__name__)
 
-expiry_router = APIRouter(prefix="/options/expiries", dependencies=[Depends(require_token)])
-chain_router = APIRouter(prefix="/options/chain", dependencies=[Depends(require_token)])
+expiry_router = APIRouter(prefix="/options/expiries", dependencies=[Depends(require_signature)])
+chain_router = APIRouter(prefix="/options/chain", dependencies=[Depends(require_signature)])
 
 
 @expiry_router.get("/{symbol}", response_model=list[OptionExpiry])
