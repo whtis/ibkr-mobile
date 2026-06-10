@@ -31,6 +31,7 @@ data class OrderFormUiState(
     val depth: Depth? = null,
     val accountSummary: AccountSummary? = null,
     val position: Position? = null,
+    val currency: String = "USD",
     // Option-specific
     val secType: String = "STK",
     val expiry: String? = null,
@@ -101,6 +102,7 @@ class OrderFormViewModel(
         OrderFormUiState(
             symbol = symbol.uppercase(),
             side = side.uppercase(),
+            currency = currency,
             secType = secType,
             expiry = expiry,
             strike = strike,
