@@ -33,9 +33,9 @@ val RequestSigning = createClientPlugin("RequestSigning", ::RequestSigningConfig
 
         val ts = System.currentTimeMillis().toString()
         val method = request.method.value
-        val encodedQuery = request.url.encodedQuery
+        val url = request.url.build()
         val pathAndQuery =
-            request.url.encodedPath + if (encodedQuery.isNotEmpty()) "?$encodedQuery" else ""
+            url.encodedPath + if (url.encodedQuery.isNotEmpty()) "?${url.encodedQuery}" else ""
 
         val bodyBytes = when (val c = request.body) {
             is OutgoingContent.ByteArrayContent -> c.bytes()
