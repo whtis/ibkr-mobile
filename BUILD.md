@@ -11,7 +11,7 @@
 
 ```
 Android (Kotlin + Compose)
-   │  HTTPS + Bearer token
+   │  HTTPS + HMAC signature (X-Timestamp + X-Signature, Keystore-backed)
    ▼
 FastAPI + ib_async  (native on Mac, port 8000)
    │  TWS binary socket
@@ -23,7 +23,7 @@ IBKR servers
 ```
 
 The backend on the Mac is the **only** place holding IBKR credentials.
-The phone holds only `(backend_url, bearer_token)`.
+The phone holds `(backend_url, device_id)` in DataStore, plus an HMAC key sealed inside AndroidKeyStore (TEE / StrongBox). The bearer token is used only during the one-time pairing.
 
 ## Why this stack
 
@@ -32,7 +32,7 @@ The phone holds only `(backend_url, bearer_token)`.
 | **ib_async** (not ibapi) | Sync/async, pandas-friendly, modern repo (`ib-api-reloaded` org). Official `ibapi` is callback hell. |
 | **Docker for Gateway only** | Auto-restart, IBC handles 2FA timeout & weekly Sunday token reset. Easier than babysitting a Java jar. |
 | **FastAPI native (not in Docker)** | Faster dev iteration. We're a single-host app; container isolation buys nothing. |
-| **Bearer token (not OAuth)** | Single user. Token in `.env`, served over HTTPS / Tailscale. OAuth would be theater. |
+| **HMAC signature + Keystore (not OAuth)** | Single user. Pairing once uses a bearer token; all subsequent requests are signed by an HMAC key held in TEE / StrongBox. Token rotation does not disturb paired devices. See README §Authentication. |
 | **Kotlin + Compose** | Native Android only — no React Native / Flutter compromises. Best perf for high-density real-time UI. |
 | **Ktor (not Retrofit)** | First-class coroutines, kotlinx.serialization, less boilerplate. |
 | **Material 3 base + custom dark tokens** | M3 default is too airy. Override colorScheme + density to mirror Longbridge's compact dark look. |

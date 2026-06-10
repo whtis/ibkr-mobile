@@ -8,6 +8,8 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-async-009688)](https://fastapi.tiangolo.com/)
 [![ib_async](https://img.shields.io/badge/ib__async-2.1.0-0a66c2)](https://github.com/ib-api-reloaded/ib_async)
 
+**[English](README.md) · [中文](README.zh-CN.md)**
+
 Built because the official IBKR mobile app is slow, ugly, and missing the things a Longbridge user takes for granted: snappy K-lines with crosshair, intraday session classification (盘前 / 盘中 / 盘后 / 夜盘), red-up / green-down (红涨绿跌), aggregated positions PnL, one-tap quick-actions on long-press, and a UI that doesn't look like it was designed in 2008.
 
 > **⚠️ Disclaimer**
@@ -82,8 +84,9 @@ Open the app → Settings → backend URL `http://10.0.2.2:8000` (emulator) or `
 │  - Material 3, Canvas charts            │
 │  - WebSocket realtime quotes            │
 └──────────────────┬──────────────────────┘
-                   │  HTTPS + Bearer token
-                   │  (LAN Wi-Fi, Tailscale, or public TLS)
+                   │  HTTPS
+                   │  X-Timestamp + X-Signature + X-Device-ID
+                   │  (HMAC-SHA256, key in AndroidKeyStore TEE/StrongBox)
 ┌──────────────────▼──────────────────────┐
 │  FastAPI + ib_async                     │
 │  - REST + WebSocket                     │
@@ -99,7 +102,67 @@ Open the app → Settings → backend URL `http://10.0.2.2:8000` (emulator) or `
               IBKR servers
 ```
 
-**The backend is the only place that holds IBKR credentials.** The Android app authenticates via a bearer token, configurable in Settings. No credentials, accounts, or executions ever live on the phone outside of an OS-protected `DataStore`.
+**The backend is the only place that holds IBKR credentials.** The Android app authenticates with HMAC-SHA256 request signatures. The signing key never leaves the phone's AndroidKeyStore (TEE / StrongBox); only the signing operation is exposed. A static bearer token is used **only** for the one-time pairing endpoint — after that, every request carries `X-Timestamp` + `X-Signature` (+ optional `X-Device-ID`), and the token can be rotated without disturbing paired devices. See [Authentication](#authentication) below.
+
+---
+
+## Authentication
+
+Two flows:
+
+### 1. Pairing — one-time, Bearer token
+
+```
+phone                                                backend
+  │                                                    │
+  │── POST /devices/pair                               │
+  │    Authorization: Bearer <api_token>               │
+  │                                                    │── generate 32-byte HMAC key K
+  │                                                    │── INSERT into devices (id, K, label)
+  │                                                    │
+  │<── { device_id, hmac_key_hex }                     │
+  │                                                    │
+  │── KeystoreHmac.importKey(K)                        │
+  │    K is now sealed inside TEE / StrongBox;         │
+  │    the app cannot read K back, only invoke         │
+  │    Mac.sign() through a system call                │
+```
+
+After pairing, rotate the bearer token on the backend (`backend/.env` → `API_TOKEN`).
+Existing paired devices keep working — they sign with K, not the token.
+
+### 2. Per-request signing — every call after pairing
+
+For every authenticated endpoint:
+
+```
+canonical = METHOD + "\n" + PATH_AND_QUERY + "\n" + TIMESTAMP_MS + "\n" + sha256_hex(body)
+signature = HMAC_SHA256(K, canonical)
+
+X-Timestamp: 1717933200000
+X-Signature: ab12cd34...
+X-Device-ID: a54e703c4d3b479b   (optional; lets backend skip the device lookup)
+```
+
+The backend (`backend/app/auth.py::require_signature`) accepts the request only when:
+
+- `X-Timestamp` is within ±60 seconds of server time
+- the signature recomputes for some paired device's stored K
+- the signature has not been seen in the last 60 seconds (in-process nonce cache)
+
+All failure modes collapse to `401 auth failed` over the wire; logs carry the real reason.
+
+### Threat model
+
+| Attack                                       | Defense                                        | Result      |
+|---|---|---|
+| Token leaked via screenshot / repo / chat    | Token alone cannot read data, only pair        | Attacker can pair a rogue device — visible to you in `/devices`, revocable |
+| APK reverse-engineered                       | K lives in Keystore, not in code               | No key extracted; pair on attacker's device yields a different K we never accept |
+| Single HTTPS request captured (MITM + cert)  | Timestamp window + nonce cache                 | Replay rejected within 60s by nonce, after 60s by timestamp |
+| Long-term MITM, attacker tries to forge new request | HMAC key never leaves the phone          | Attacker cannot compute `HMAC(K, new_canonical)` without K |
+| Phone stolen, screen unlocked                | Out of scope — software cannot help            | Use device PIN / biometric / Find My Device remote wipe |
+
+This is the same pattern used by AWS SigV4, Google Cloud Storage authenticated requests, and Stripe webhook signatures — HMAC + canonical request + timestamp + nonce. The unique part here is keeping K inside Android Keystore so a stolen APK or DataStore dump doesn't reveal it.
 
 ---
 
@@ -222,10 +285,17 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
 Open the app → **Settings** tab → fill in:
-- **Backend URL**: `http://<Mac LAN IP>:8000` (or `https://your.domain` if cloud-hosted)
+- **Backend URL**: `http://<host LAN IP>:8000` (or `https://your.domain` if cloud-hosted)
 - **API Token**: same value as `API_TOKEN` in backend `.env`
 - Tap **测试连接** → should turn green
 - Tap **保存**
+
+Scroll down to **设备配对** and tap **配对此设备**:
+
+- The app calls `POST /devices/pair` once with the bearer token
+- The returned HMAC key is imported into AndroidKeyStore (hardware-backed)
+- All subsequent requests use that key for signatures; the token is no longer needed
+- **Recommended**: immediately rotate `API_TOKEN` in `backend/.env` and restart the backend. Already-paired devices are unaffected by token rotation.
 
 Now the Positions / Market / Watchlist tabs will populate from your paper account.
 
@@ -254,7 +324,9 @@ ibkr-mobile/
 ├── android/                   Kotlin + Compose app
 │   ├── app/src/main/
 │   │   ├── java/com/tis/ibkr/
-│   │   │   ├── data/          API client, DataStore, models
+│   │   │   ├── data/          API client, DataStore, models,
+│   │   │   │                  KeystoreHmac (TEE-backed HMAC),
+│   │   │   │                  RequestSigning (Ktor signing plugin)
 │   │   │   ├── ui/screens/    Watchlist, Market, Positions, StockDetail, ...
 │   │   │   ├── ui/components/ Charts, sub-bars, quick-action sheet
 │   │   │   ├── ui/theme/      Longbridge-inspired Material 3 theme
@@ -267,9 +339,10 @@ ibkr-mobile/
 │   │   ├── ibkr.py            IB Gateway connector
 │   │   ├── longbridge.py      LongPort SDK wrapper
 │   │   ├── db.py              SQLite executions store
-│   │   ├── auth.py            Bearer auth dependency
+│   │   ├── auth.py            Bearer (pair-only) + HMAC signature deps
 │   │   └── routes/
 │   │       ├── account.py     summary, positions
+│   │       ├── devices.py     pair, list, revoke (signature auth)
 │   │       ├── orders.py      place, cancel, list active
 │   │       ├── executions.py  history (SQLite + ib_async)
 │   │       ├── options.py     option chain, contract lookup
@@ -297,6 +370,7 @@ ibkr-mobile/
 | **WebSocket subscription multiplex with refcounts** | Multiple Compose screens can subscribe to the same symbol cheaply; cleanup is automatic when the last subscriber leaves. |
 | **SQLite execution history** | IBKR `reqExecutions` only returns 7 days. Local persistence preserves full history. |
 | **`uv` over `pip`** | ~10× faster install, lockfile, pyproject-native. |
+| **HMAC + AndroidKeyStore for app auth** | A stolen token alone cannot read data — it only pairs. A stolen APK cannot extract the signing key (TEE / StrongBox holds it). Replay attacks are bounded to a 60s window by timestamp + nonce cache. Same pattern as AWS SigV4. |
 
 ---
 
