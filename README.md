@@ -7,6 +7,8 @@
 [![Compose](https://img.shields.io/badge/Compose-2026.05-4285f4)](https://developer.android.com/jetpack/compose)
 [![FastAPI](https://img.shields.io/badge/FastAPI-async-009688)](https://fastapi.tiangolo.com/)
 [![ib_async](https://img.shields.io/badge/ib__async-2.1.0-0a66c2)](https://github.com/ib-api-reloaded/ib_async)
+[![Contributors](https://img.shields.io/github/contributors/whtis/ibkr-mobile)](https://github.com/whtis/ibkr-mobile/graphs/contributors)
+[![Last commit](https://img.shields.io/github/last-commit/whtis/ibkr-mobile)](https://github.com/whtis/ibkr-mobile/commits/main)
 
 **[English](README.md) · [中文](README.zh-CN.md)**
 
