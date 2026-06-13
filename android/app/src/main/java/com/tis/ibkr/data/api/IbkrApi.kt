@@ -74,7 +74,12 @@ class IbkrApi(private val settingsStore: SettingsStore) {
 
     suspend fun accountSummary(): List<AccountSummary> = authed("/account/summary").body()
 
-    suspend fun positions(): List<Position> = authed("/account/positions").body()
+    suspend fun positions(account: String? = null): List<Position> =
+        client.get("${base()}/account/positions") {
+            if (account != null) url { parameters.append("account", account) }
+        }.body()
+
+    suspend fun accounts(): AccountsResponse = authed("/account/accounts").body()
 
     suspend fun quote(symbol: String): Quote = authed("/quote/${symbol.uppercase()}").body()
 

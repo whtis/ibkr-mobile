@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends
+import asyncio
+
+from fastapi import APIRouter, Depends, HTTPException
 
 from ..auth import require_signature
 from ..ibkr import client
@@ -15,31 +17,44 @@ NUMERIC_TAGS = {
 }
 
 
-def _pnl_for_account(ib, account_id: str) -> dict[str, float | None]:
-    for pnl in ib.pnl():
-        if pnl.account == account_id:
-            return {
-                "daily_pnl": float(pnl.dailyPnL) if pnl.dailyPnL is not None and pnl.dailyPnL == pnl.dailyPnL else None,
-                "unrealized_pnl": float(pnl.unrealizedPnL) if pnl.unrealizedPnL is not None and pnl.unrealizedPnL == pnl.unrealizedPnL else None,
-                "realized_pnl": float(pnl.realizedPnL) if pnl.realizedPnL is not None and pnl.realizedPnL == pnl.realizedPnL else None,
-            }
-    return {"daily_pnl": None, "unrealized_pnl": None, "realized_pnl": None}
-
-
-def _pnl_for_position(ib, account_id: str, con_id: int) -> dict[str, float | None]:
-    for pnl in ib.pnlSingle():
-        if pnl.account == account_id and pnl.conId == con_id:
-            return {
-                "daily_pnl": float(pnl.dailyPnL) if pnl.dailyPnL is not None and pnl.dailyPnL == pnl.dailyPnL else None,
-            }
-    return {"daily_pnl": None}
-
-
 def _to_float(s: str) -> float:
     try:
         return float(s)
     except (TypeError, ValueError):
         return 0.0
+
+
+def _opt(x) -> float | None:
+    """Coerce an IB numeric to float, mapping NaN and IB's 'unset' sentinel
+    (~1.7977e308 == sys.float_info.max) to None."""
+    if x is None:
+        return None
+    try:
+        f = float(x)
+    except (TypeError, ValueError):
+        return None
+    if f != f or abs(f) >= 1e300:
+        return None
+    return f
+
+
+def _pnl_for_account(ib, account_id: str) -> dict[str, float | None]:
+    for pnl in ib.pnl():
+        if pnl.account == account_id:
+            return {
+                "daily_pnl": _opt(pnl.dailyPnL),
+                "unrealized_pnl": _opt(pnl.unrealizedPnL),
+                "realized_pnl": _opt(pnl.realizedPnL),
+            }
+    return {"daily_pnl": None, "unrealized_pnl": None, "realized_pnl": None}
+
+
+@router.get("/accounts")
+async def accounts() -> dict:
+    """List the accounts visible to this login, for the holdings account switcher."""
+    ib = await client.ensure_connected()
+    accs = list(ib.managedAccounts())
+    return {"accounts": accs, "default": accs[0] if accs else None}
 
 
 @router.get("/summary", response_model=list[AccountSummary])
@@ -66,45 +81,63 @@ async def account_summary() -> list[AccountSummary]:
     return result
 
 
-def _opt(x) -> float | None:
-    if x is None:
-        return None
-    try:
-        f = float(x)
-    except (TypeError, ValueError):
-        return None
-    return None if f != f else f
-
-
 @router.get("/positions", response_model=list[Position])
-async def positions() -> list[Position]:
+async def positions(account: str | None = None) -> list[Position]:
+    """Holdings for one account. `account` defaults to the first managed account.
+
+    Built from ib.positions() + reqPnLSingle rather than ib.portfolio(): with
+    multiple linked accounts reqAccountUpdates/portfolio() fails to deliver
+    portfolio items, while positions()/pnlSingle are multi-account safe.
+    """
     ib = await client.ensure_connected()
-    items = ib.portfolio()
-    # Lazily subscribe to per-position PnL streams so future polls have data.
-    subscribed_keys = {(p.account, p.conId) for p in ib.pnlSingle()}
-    for p in items:
-        key = (p.account, p.contract.conId)
-        if key not in subscribed_keys and p.contract.conId:
+    managed = list(ib.managedAccounts())
+    if account is not None and account not in managed:
+        raise HTTPException(status_code=404, detail=f"unknown account {account}")
+    acct = account or (managed[0] if managed else "")
+
+    pos = ib.positions(acct) if acct else ib.positions()
+
+    # Lazily subscribe to per-position PnL streams (value + unrealized/daily/realized PnL).
+    subscribed = {(s.account, s.conId) for s in ib.pnlSingle()}
+    newly = 0
+    for p in pos:
+        con_id = p.contract.conId
+        if con_id and (p.account, con_id) not in subscribed:
             try:
-                ib.reqPnLSingle(p.account, "", p.contract.conId)
+                ib.reqPnLSingle(p.account, "", con_id)
+                newly += 1
             except Exception:
                 pass
+    if newly:
+        # Let the first batch of pnlSingle snapshots arrive so the first poll has data.
+        await asyncio.sleep(1.5)
+
+    pnl_by_key = {(s.account, s.conId): s for s in ib.pnlSingle()}
 
     out: list[Position] = []
-    for p in items:
-        single = _pnl_for_position(ib, p.account, p.contract.conId or 0)
+    for p in pos:
+        c = p.contract
+        s = pnl_by_key.get((p.account, c.conId))
+        try:
+            mult = float(c.multiplier) if c.multiplier else 1.0
+        except (TypeError, ValueError):
+            mult = 1.0
+        market_value = _opt(s.value) if s else None
+        market_price = None
+        if market_value is not None and p.position and (p.position * mult):
+            market_price = market_value / (p.position * mult)
         out.append(Position(
             account=p.account,
-            symbol=p.contract.symbol,
-            sec_type=p.contract.secType,
-            exchange=p.contract.exchange or p.contract.primaryExchange or "",
-            currency=p.contract.currency,
+            symbol=c.symbol,
+            sec_type=c.secType,
+            exchange=c.exchange or c.primaryExchange or "",
+            currency=c.currency,
             position=float(p.position),
-            avg_cost=float(p.averageCost),
-            market_price=_opt(p.marketPrice),
-            market_value=_opt(p.marketValue),
-            unrealized_pnl=_opt(p.unrealizedPNL),
-            realized_pnl=_opt(p.realizedPNL),
-            daily_pnl=single["daily_pnl"],
+            avg_cost=float(p.avgCost),
+            market_price=market_price,
+            market_value=market_value,
+            unrealized_pnl=_opt(s.unrealizedPnL) if s else None,
+            realized_pnl=_opt(s.realizedPnL) if s else None,
+            daily_pnl=_opt(s.dailyPnL) if s else None,
         ))
     return out

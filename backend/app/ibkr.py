@@ -59,23 +59,16 @@ class IbkrClient:
         # 1=live, 2=frozen, 3=delayed, 4=delayed-frozen.
         # Type 4 = delayed (15-min) + frozen fallback when market closed.
         self.ib.reqMarketDataType(4)
-        # Subscribe to portfolio updates so ib.portfolio() returns market_price/market_value/pnl.
-        # Fire as background task — the End event may never come for empty paper accounts and
-        # we don't need to block startup waiting for the full download.
+        # Subscribe to per-account daily PnL streams so ib.pnl() feeds /account/summary.
+        # We intentionally do NOT use reqAccountUpdates / ib.portfolio() here: with
+        # multiple linked accounts it fails to deliver portfolio items. /account/positions
+        # builds holdings from ib.positions() + reqPnLSingle instead (multi-account safe).
         for account in self.ib.managedAccounts():
-            # `reqAccountUpdatesAsync` returns a Future that ib_async already schedules.
-            # End event may never arrive for empty paper accounts — fire-and-forget and
-            # don't block startup waiting for the full portfolio download.
-            try:
-                self.ib.reqAccountUpdatesAsync(account)
-            except Exception:
-                log.exception("reqAccountUpdatesAsync(%s) failed", account)
-            # Subscribe to per-account daily PnL stream so ib.pnl() returns it.
             try:
                 self.ib.reqPnL(account)
             except Exception as e:
                 log.warning("reqPnL(%s) failed: %s", account, e)
-        await asyncio.sleep(3)
+        await asyncio.sleep(2)
 
         # Wire live-fill persistence + initial 7-day backfill.
         try:

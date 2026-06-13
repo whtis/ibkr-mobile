@@ -21,6 +21,8 @@ data class PositionsUiState(
     val summaries: List<AccountSummary> = emptyList(),
     val positions: List<Position> = emptyList(),
     val activeOrders: List<OrderResponse> = emptyList(),
+    val accounts: List<String> = emptyList(),
+    val selectedAccount: String? = null,
     val sort: PositionsSort = PositionsSort.MarketValue,
 ) {
     val sortedPositions: List<Position>
@@ -35,9 +37,11 @@ data class PositionsUiState(
     val totalUnrealizedPnl: Double
         get() = positions.sumOf { it.unrealizedPnl ?: 0.0 }
 
-    /** First non-"All" summary, for headline display. */
+    /** Summary for the selected account, falling back to the first non-"All" summary. */
     val primarySummary: AccountSummary?
-        get() = summaries.firstOrNull { it.accountId != "All" } ?: summaries.firstOrNull()
+        get() = summaries.firstOrNull { it.accountId == selectedAccount }
+            ?: summaries.firstOrNull { it.accountId != "All" }
+            ?: summaries.firstOrNull()
 }
 
 class PositionsViewModel : ViewModel() {
@@ -46,19 +50,49 @@ class PositionsViewModel : ViewModel() {
     private val _state = MutableStateFlow(PositionsUiState())
     val state: StateFlow<PositionsUiState> = _state.asStateFlow()
 
+    private data class LoadResult(
+        val accounts: List<String>,
+        val selected: String?,
+        val summaries: List<AccountSummary>,
+        val positions: List<Position>,
+        val orders: List<OrderResponse>,
+    )
+
     init { refresh() }
 
-    fun refresh() {
+    /** Refresh keeping the current account selection. */
+    fun refresh() = load(_state.value.selectedAccount)
+
+    /** Switch to another account and reload its holdings. */
+    fun selectAccount(account: String) {
+        if (account == _state.value.selectedAccount) return
+        _state.update { it.copy(selectedAccount = account, positions = emptyList()) }
+        load(account)
+    }
+
+    private fun load(account: String?) {
         _state.update { it.copy(loading = true, error = null) }
         viewModelScope.launch {
             runCatching {
+                val accountIds = runCatching { app.api.accounts().accounts }.getOrDefault(emptyList())
+                // Keep requested account if still valid, else fall back to the first one.
+                val selected = account?.takeIf { accountIds.isEmpty() || it in accountIds }
+                    ?: accountIds.firstOrNull()
                 val summaries = app.api.accountSummary()
-                val positions = app.api.positions()
+                val positions = app.api.positions(selected)
                 val orders = runCatching { app.api.activeOrders() }.getOrDefault(emptyList())
-                Triple(summaries, positions, orders)
-            }.onSuccess { (s, p, o) ->
+                LoadResult(accountIds, selected, summaries, positions, orders)
+            }.onSuccess { r ->
                 _state.update {
-                    it.copy(loading = false, summaries = s, positions = p, activeOrders = o, error = null)
+                    it.copy(
+                        loading = false,
+                        error = null,
+                        accounts = r.accounts,
+                        selectedAccount = r.selected,
+                        summaries = r.summaries,
+                        positions = r.positions,
+                        activeOrders = r.orders,
+                    )
                 }
             }.onFailure { e ->
                 _state.update {

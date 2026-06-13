@@ -41,6 +41,12 @@ data class Position(
 )
 
 @Serializable
+data class AccountsResponse(
+    val accounts: List<String> = emptyList(),
+    val default: String? = null,
+)
+
+@Serializable
 data class ExtendedQuote(
     val last: Double? = null,
     @SerialName("prev_close") val prevClose: Double? = null,

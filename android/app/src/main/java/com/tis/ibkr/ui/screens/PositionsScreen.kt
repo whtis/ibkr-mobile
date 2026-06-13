@@ -1,6 +1,8 @@
 package com.tis.ibkr.ui.screens
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -22,6 +24,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -89,6 +92,15 @@ private fun Content(
         contentPadding = PaddingValues(bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(0.dp),
     ) {
+        if (state.accounts.size > 1) {
+            item("accountSwitcher") {
+                AccountSwitcher(
+                    accounts = state.accounts,
+                    selected = state.selectedAccount,
+                    onSelect = { vm.selectAccount(it) },
+                )
+            }
+        }
         item("header") {
             state.primarySummary?.let { HeaderCard(it, state) }
         }
@@ -129,6 +141,26 @@ private fun Content(
                 }
                 item("spacer_${currency}") { Spacer(Modifier.height(8.dp)) }
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AccountSwitcher(accounts: List<String>, selected: String?, onSelect: (String) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        accounts.forEach { acc ->
+            FilterChip(
+                selected = acc == selected,
+                onClick = { onSelect(acc) },
+                label = { Text(acc) },
+            )
         }
     }
 }
