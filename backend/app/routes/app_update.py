@@ -29,25 +29,37 @@ class LatestRelease(BaseModel):
 
 
 @router.get("/latest", response_model=LatestRelease)
-async def latest() -> LatestRelease:
-    """Most recent GitHub release (including pre-releases). The client treats
-    `version_name != BuildConfig.VERSION_NAME` as 'update available' — the most
-    recent release is by definition the newest."""
-    url = f"https://api.github.com/repos/{settings.github_repo}/releases"
+async def latest(channel: str = "stable") -> LatestRelease:
+    """Newest GitHub release for the requested channel. The client treats
+    `version_name != BuildConfig.VERSION_NAME` as 'update available'.
+
+    - channel=stable (default): latest non-prerelease release.
+    - channel=beta: most recent release, including pre-releases.
+    """
+    repo = settings.github_repo
     headers = {"Accept": "application/vnd.github+json"}
     if settings.github_token:
         headers["Authorization"] = f"Bearer {settings.github_token}"
     try:
         async with httpx.AsyncClient(timeout=10) as cx:
-            r = await cx.get(url, headers=headers, params={"per_page": 1})
+            if channel == "beta":
+                r = await cx.get(
+                    f"https://api.github.com/repos/{repo}/releases",
+                    headers=headers, params={"per_page": 1},
+                )
+            else:
+                # /releases/latest excludes pre-releases and drafts = the stable channel.
+                r = await cx.get(f"https://api.github.com/repos/{repo}/releases/latest", headers=headers)
     except httpx.HTTPError as e:
         raise HTTPException(502, f"github unreachable: {e}") from e
+    if r.status_code == 404:
+        raise HTTPException(404, f"no release for channel {channel}")
     if r.status_code != 200:
         raise HTTPException(502, f"github releases error {r.status_code}")
-    rels = r.json()
-    if not rels:
-        raise HTTPException(404, "no releases found")
-    rel = rels[0]
+    payload = r.json()
+    rel = payload[0] if isinstance(payload, list) else payload
+    if not rel:
+        raise HTTPException(404, f"no release for channel {channel}")
     tag = rel.get("tag_name", "") or ""
     apk = next(
         (a["browser_download_url"] for a in rel.get("assets", [])

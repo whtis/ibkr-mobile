@@ -66,6 +66,15 @@ class SettingsStore(private val context: Context) {
         context.dataStore.edit { it[keyRedUp] = value }
     }
 
+    // --- Update channel: false = stable only (default), true = also receive beta builds ---
+    private val keyBetaUpdates = booleanPreferencesKey("beta_updates")
+
+    val betaUpdates: Flow<Boolean> = context.dataStore.data.map { it[keyBetaUpdates] ?: false }
+
+    suspend fun setBetaUpdates(value: Boolean) {
+        context.dataStore.edit { it[keyBetaUpdates] = value }
+    }
+
     private fun Preferences.toSettings() = Settings(
         backendUrl = this[keyUrl]?.takeIf { it.isNotBlank() } ?: DEFAULT_URL,
         token = this[keyToken]?.takeIf { it.isNotBlank() } ?: DEFAULT_TOKEN,

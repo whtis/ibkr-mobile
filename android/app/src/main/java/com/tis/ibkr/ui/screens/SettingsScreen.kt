@@ -208,6 +208,28 @@ fun SettingsScreen(vm: SettingsViewModel = viewModel()) {
             color = LbColors.OnSurfaceMuted,
             style = MaterialTheme.typography.bodySmall,
         )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("接收 Beta 更新", color = LbColors.OnSurface, style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    if (state.betaUpdates) "会收到测试版(beta)更新" else "只接收正式版更新",
+                    color = LbColors.OnSurfaceMuted,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            Switch(
+                checked = state.betaUpdates,
+                onCheckedChange = { vm.setBetaUpdates(it) },
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = Color.White,
+                    checkedTrackColor = LbColors.Accent,
+                ),
+            )
+        }
         var checking by remember { mutableStateOf(false) }
         var checkMsg by remember { mutableStateOf<String?>(null) }
         Button(

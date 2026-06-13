@@ -12,6 +12,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.net.HttpURLConnection
@@ -48,7 +49,9 @@ object AppUpdater {
      * an update is available, else null. [manual] ignores a prior dismissal.
      */
     suspend fun check(manual: Boolean = false): LatestRelease? {
-        val latest = runCatching { IbkrApp.instance.api.appLatest() }.getOrNull() ?: return null
+        val beta = runCatching { IbkrApp.instance.settingsStore.betaUpdates.first() }.getOrDefault(false)
+        val channel = if (beta) "beta" else "stable"
+        val latest = runCatching { IbkrApp.instance.api.appLatest(channel) }.getOrNull() ?: return null
         val cur = currentVersionName(IbkrApp.instance)
         val isNewer = latest.versionName.isNotBlank() && latest.versionName != cur
         if (isNewer && (manual || latest.versionName != dismissedVersion)) {

@@ -81,7 +81,10 @@ class IbkrApi(private val settingsStore: SettingsStore) {
 
     suspend fun accounts(): AccountsResponse = authed("/account/accounts").body()
 
-    suspend fun appLatest(): LatestRelease = authed("/app/latest").body()
+    suspend fun appLatest(channel: String = "stable"): LatestRelease =
+        client.get("${base()}/app/latest") {
+            url { parameters.append("channel", channel) }
+        }.body()
 
     suspend fun registerFcmToken(token: String) {
         client.post("${base()}/devices/fcm-token") { setBody(FcmTokenRequest(token)) }

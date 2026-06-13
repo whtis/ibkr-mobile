@@ -13,6 +13,7 @@ data class SettingsUiState(
     val backendUrl: String = "",
     val token: String = "",
     val redUp: Boolean = true,
+    val betaUpdates: Boolean = false,
     val connectionOk: Boolean = false,
     val connectionMessage: String? = null,
     val deviceId: String = "",
@@ -35,10 +36,17 @@ class SettingsViewModel : ViewModel() {
         viewModelScope.launch {
             app.settingsStore.redUp.collect { v -> _state.update { it.copy(redUp = v) } }
         }
+        viewModelScope.launch {
+            app.settingsStore.betaUpdates.collect { v -> _state.update { it.copy(betaUpdates = v) } }
+        }
     }
 
     fun setRedUp(value: Boolean) {
         viewModelScope.launch { app.settingsStore.setRedUp(value) }
+    }
+
+    fun setBetaUpdates(value: Boolean) {
+        viewModelScope.launch { app.settingsStore.setBetaUpdates(value) }
     }
 
     suspend fun save(url: String, token: String) {
