@@ -47,6 +47,14 @@ data class AccountsResponse(
 )
 
 @Serializable
+data class LatestRelease(
+    @SerialName("version_name") val versionName: String,
+    val notes: String = "",
+    @SerialName("apk_url") val apkUrl: String? = null,
+    val prerelease: Boolean = false,
+)
+
+@Serializable
 data class ExtendedQuote(
     val last: Double? = null,
     @SerialName("prev_close") val prevClose: Double? = null,

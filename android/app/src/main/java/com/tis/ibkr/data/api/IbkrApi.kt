@@ -81,6 +81,8 @@ class IbkrApi(private val settingsStore: SettingsStore) {
 
     suspend fun accounts(): AccountsResponse = authed("/account/accounts").body()
 
+    suspend fun appLatest(): LatestRelease = authed("/app/latest").body()
+
     suspend fun quote(symbol: String): Quote = authed("/quote/${symbol.uppercase()}").body()
 
     suspend fun bars(symbol: String, period: String = "1d"): List<Bar> = client.get(

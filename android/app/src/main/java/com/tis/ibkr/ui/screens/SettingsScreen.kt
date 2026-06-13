@@ -31,10 +31,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.tis.ibkr.data.update.AppUpdater
 import com.tis.ibkr.ui.theme.LbColors
 import com.tis.ibkr.viewmodel.SettingsViewModel
 import kotlinx.coroutines.launch
@@ -43,6 +45,7 @@ import kotlinx.coroutines.launch
 fun SettingsScreen(vm: SettingsViewModel = viewModel()) {
     val state by vm.state.collectAsState()
     val scope = rememberCoroutineScope()
+    val ctx = LocalContext.current
 
     var url by remember(state.backendUrl) { mutableStateOf(state.backendUrl) }
     var token by remember(state.token) { mutableStateOf(state.token) }
@@ -195,6 +198,37 @@ fun SettingsScreen(vm: SettingsViewModel = viewModel()) {
                     checkedTrackColor = LbColors.Accent,
                 ),
             )
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        Text("关于", style = MaterialTheme.typography.titleMedium)
+        Text(
+            "当前版本 ${AppUpdater.currentVersionName(ctx)}",
+            color = LbColors.OnSurfaceMuted,
+            style = MaterialTheme.typography.bodySmall,
+        )
+        var checking by remember { mutableStateOf(false) }
+        var checkMsg by remember { mutableStateOf<String?>(null) }
+        Button(
+            onClick = {
+                checking = true
+                checkMsg = null
+                scope.launch {
+                    val r = AppUpdater.check(manual = true)
+                    checking = false
+                    if (r == null) checkMsg = "已是最新版本"
+                }
+            },
+            enabled = !checking,
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = LbColors.SurfaceElevated,
+                contentColor = LbColors.OnSurface,
+            ),
+        ) { Text(if (checking) "检查中..." else "检查更新") }
+        checkMsg?.let {
+            Text(it, color = LbColors.OnSurfaceMuted, style = MaterialTheme.typography.bodySmall)
         }
 
         Spacer(Modifier.height(8.dp))

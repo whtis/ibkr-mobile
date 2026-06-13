@@ -54,6 +54,12 @@ class IbkrApp : Application() {
                 delay(30_000)
             }
         }
+        // Check for an app update shortly after launch (needs a paired device for
+        // the authed /app/latest call; failures are swallowed).
+        appScope.launch {
+            delay(3_000)
+            runCatching { com.tis.ibkr.data.update.AppUpdater.check() }
+        }
     }
 
     companion object {

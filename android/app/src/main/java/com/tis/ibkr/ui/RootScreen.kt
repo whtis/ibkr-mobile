@@ -41,6 +41,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.tis.ibkr.IbkrApp
 import com.tis.ibkr.data.repo.TradingMode
+import com.tis.ibkr.data.update.AppUpdater
+import com.tis.ibkr.ui.components.UpdateDialog
 
 @Composable
 fun RootScreen() {
@@ -49,6 +51,9 @@ fun RootScreen() {
     val backStack by nav.currentBackStackEntryAsState()
     val currentRoute = backStack?.destination?.route
     val showBottomBar = currentRoute in Tab.entries.map { it.route }
+
+    val update by AppUpdater.available.collectAsState()
+    update?.let { UpdateDialog(it, onDismiss = { AppUpdater.dismiss() }) }
 
     Column(Modifier.fillMaxSize()) {
     if (tradingMode == TradingMode.LIVE) LiveModeBanner()
