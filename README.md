@@ -182,6 +182,7 @@ This is the same pattern used by AWS SigV4, Google Cloud Storage authenticated r
 - **Option chain** browser with strike grid and side/expiry selector
 
 ### 💼 Positions
+- **Multi-account switching** — pick between linked accounts on the holdings page
 - Aggregated PnL across positions (more accurate than IBKR per-account summary)
 - Four sort modes: market value / unrealized PnL / daily PnL / symbol
 - Long-press quick actions: 加仓 / 减仓 / 查看详情 / 复制代码
@@ -204,6 +205,10 @@ This is the same pattern used by AWS SigV4, Google Cloud Storage authenticated r
 - Material 3 dark theme tuned to Longbridge palette
 - Adaptive icon (animated `C` pulse)
 - Bottom-bar navigation, 4 tabs (自选 / 行情 / 持仓 / 设置)
+
+### 🔔 Updates & alerts
+- **In-app updates** — checks GitHub releases on launch and from Settings, then downloads + installs the APK in place
+- **Gateway 2FA push** — a phone notification (FCM) when IB Gateway needs second-factor approval on its weekly cold login. The backend tails the gateway logs and pushes via a Cloudflare Worker relay, so it works even when the backend is behind the GFW
 
 ---
 
