@@ -52,6 +52,11 @@ jobs:
       - name: Set up Gradle (with cache)
         uses: gradle/actions/setup-gradle@v6
 
+      # google-services.json is gitignored (kept out of the public repo); the
+      # Google Services plugin needs it at build time. Decode it from a secret.
+      - name: Write google-services.json
+        run: echo "${{ secrets.GOOGLE_SERVICES_JSON_B64 }}" | base64 -d > app/google-services.json
+
       - name: Derive version from tag
         id: ver
         shell: bash
