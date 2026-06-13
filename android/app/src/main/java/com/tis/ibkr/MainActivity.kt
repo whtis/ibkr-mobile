@@ -1,6 +1,7 @@
 package com.tis.ibkr
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -16,6 +17,9 @@ import com.tis.ibkr.ui.theme.IbkrTheme
 
 class MainActivity : ComponentActivity() {
 
+    // Pure-Compose ComponentActivity (no Fragments); the fragment-version lint
+    // check is a false positive here.
+    @SuppressLint("InvalidFragmentVersionForActivityResult")
     private val requestNotifPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
