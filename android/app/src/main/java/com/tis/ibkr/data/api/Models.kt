@@ -55,6 +55,11 @@ data class LatestRelease(
 )
 
 @Serializable
+data class FcmTokenRequest(
+    @SerialName("fcm_token") val fcmToken: String,
+)
+
+@Serializable
 data class ExtendedQuote(
     val last: Double? = null,
     @SerialName("prev_close") val prevClose: Double? = null,

@@ -83,6 +83,10 @@ class IbkrApi(private val settingsStore: SettingsStore) {
 
     suspend fun appLatest(): LatestRelease = authed("/app/latest").body()
 
+    suspend fun registerFcmToken(token: String) {
+        client.post("${base()}/devices/fcm-token") { setBody(FcmTokenRequest(token)) }
+    }
+
     suspend fun quote(symbol: String): Quote = authed("/quote/${symbol.uppercase()}").body()
 
     suspend fun bars(symbol: String, period: String = "1d"): List<Bar> = client.get(

@@ -1,7 +1,9 @@
 package com.tis.ibkr
 
 import android.app.Application
+import com.google.firebase.messaging.FirebaseMessaging
 import com.tis.ibkr.data.api.IbkrApi
+import com.tis.ibkr.data.push.PushNotifications
 import com.tis.ibkr.data.api.QuoteStream
 import com.tis.ibkr.data.db.AppDatabase
 import com.tis.ibkr.data.repo.TradingModeRepository
@@ -40,9 +42,17 @@ class IbkrApp : Application() {
         api = IbkrApi(settingsStore)
         // Keep the IbkrApi'''s cached device_id in sync with persisted Settings so
         // the request-signing interceptor can read it synchronously.
+        PushNotifications.ensureChannel(applicationContext)
         appScope.launch {
+            var lastRegistered: String? = null
             settingsStore.flow.collect { s ->
                 api.setCachedDeviceId(s.deviceId)
+                // Register the FCM push token once we have a paired device (the
+                // /devices/fcm-token call is authed, so it needs the device_id).
+                if (s.deviceId.isNotBlank() && s.deviceId != lastRegistered) {
+                    lastRegistered = s.deviceId
+                    registerPushToken()
+                }
             }
         }
         watchlist = WatchlistRepository(AppDatabase.get(applicationContext).watchlistDao())
@@ -59,6 +69,12 @@ class IbkrApp : Application() {
         appScope.launch {
             delay(3_000)
             runCatching { com.tis.ibkr.data.update.AppUpdater.check() }
+        }
+    }
+
+    private fun registerPushToken() {
+        FirebaseMessaging.getInstance().token.addOnSuccessListener { token ->
+            appScope.launch { runCatching { api.registerFcmToken(token) } }
         }
     }
 
