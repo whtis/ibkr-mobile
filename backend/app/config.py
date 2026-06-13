@@ -24,5 +24,19 @@ class Settings(BaseSettings):
     max_order_notional_usd: float = 100_000.0
     order_rate_limit_per_min: int = 10
 
+    # --- Push notifications (FCM) ---
+    # Path to the Firebase service-account JSON. Empty disables push.
+    fcm_service_account_path: str = ""
+    # IB Gateway container name watched by the 2FA monitor (app/gateway_monitor.py).
+    gateway_container: str = "ibkr-gateway"
+    # Minimum seconds between repeated 2FA push notifications.
+    twofa_notify_cooldown_s: int = 600
+
+    # --- In-app update (app/routes/app_update.py) ---
+    # GitHub repo "owner/name" queried by /app/latest.
+    github_repo: str = "whtis/ibkr-mobile"
+    # Optional token for reading releases of a private repo (empty = public).
+    github_token: str = ""
+
 
 settings = Settings()

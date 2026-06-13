@@ -5,6 +5,8 @@
 *.keystore
 *.jks
 google-services.json
+firebase-sa.json
+firebase-service-account*.json
 
 # python
 __pycache__/

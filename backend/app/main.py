@@ -37,9 +37,13 @@ if settings.mock_mode:
         app.include_router(r)
 
 else:
-    from . import db
+    import asyncio
+
+    from . import db, gateway_monitor
     from .ibkr import client
-    from .routes import account, devices, executions, health, options, orders, quote, search, ws_quotes
+    from .routes import (
+        account, app_update, devices, executions, health, options, orders, quote, search, ws_quotes,
+    )
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -50,7 +54,10 @@ else:
             await client.connect()
         except Exception as e:
             log.warning("Initial IB connection failed (will retry on first request): %s", e)
+        # Background: push a phone reminder when the gateway needs 2FA.
+        monitor_task = asyncio.create_task(gateway_monitor.run())
         yield
+        monitor_task.cancel()
         await client.disconnect()
 
     app = FastAPI(title="IBKR Mobile Backend", version="0.1.0", lifespan=lifespan)
@@ -64,6 +71,7 @@ else:
 
     app.include_router(health.router)
     app.include_router(devices.router)
+    app.include_router(app_update.router)
     app.include_router(account.router)
     app.include_router(search.router)
     app.include_router(quote.router)

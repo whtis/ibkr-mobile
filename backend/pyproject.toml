@@ -13,6 +13,8 @@ dependencies = [
     # Pin to 2.x so installs work on Debian 12 / Ubuntu 22.04 and older.
     "longport>=2.0,<3",
     "httpx>=0.27.0",
+    # FCM push (gateway 2FA reminders). Pulls google-auth + grpc; pure-python.
+    "firebase-admin>=6.5.0",
 ]
 
 [tool.uv]

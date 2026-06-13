@@ -66,6 +66,11 @@ def init() -> None:
             );
             """
         )
+        # fcm_token added after the devices table shipped; SQLite has no
+        # "ADD COLUMN IF NOT EXISTS", so guard on the current schema.
+        cols = {r["name"] for r in c.execute("PRAGMA table_info(devices)").fetchall()}
+        if "fcm_token" not in cols:
+            c.execute("ALTER TABLE devices ADD COLUMN fcm_token TEXT")
     log.info("execution DB initialized at %s", DB_PATH)
 
 
@@ -115,6 +120,32 @@ def touch_device(device_id: str) -> None:
             "UPDATE devices SET last_used_at = strftime('%s','now') WHERE device_id = ?",
             (device_id,),
         )
+
+
+def set_fcm_token(device_id: str, fcm_token: str | None) -> bool:
+    """Store (or clear) the FCM push token for a device. Returns False if the
+    device row doesn't exist."""
+    with conn() as c:
+        cur = c.execute(
+            "UPDATE devices SET fcm_token = ? WHERE device_id = ?",
+            (fcm_token, device_id),
+        )
+        return cur.rowcount > 0
+
+
+def list_fcm_tokens() -> list[str]:
+    """Distinct non-empty FCM tokens across all paired devices (push targets)."""
+    with conn() as c:
+        rows = c.execute(
+            "SELECT DISTINCT fcm_token FROM devices WHERE fcm_token IS NOT NULL AND fcm_token != ''"
+        ).fetchall()
+        return [r["fcm_token"] for r in rows]
+
+
+def drop_fcm_token(fcm_token: str) -> None:
+    """Clear a token that FCM reported as unregistered/invalid."""
+    with conn() as c:
+        c.execute("UPDATE devices SET fcm_token = NULL WHERE fcm_token = ?", (fcm_token,))
 
 
 def upsert_execution(

@@ -14,7 +14,7 @@ from __future__ import annotations
 import logging
 import secrets
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
 
 from .. import db
@@ -60,5 +60,23 @@ async def list_devices() -> list[DeviceInfo]:
 @router.delete("/{device_id}", dependencies=[Depends(require_signature)])
 async def revoke(device_id: str) -> dict:
     if not db.delete_device(device_id):
+        raise HTTPException(404, "device not found")
+    return {"ok": True}
+
+
+class FcmTokenRequest(BaseModel):
+    fcm_token: str
+
+
+@router.post("/fcm-token", dependencies=[Depends(require_signature)])
+async def set_fcm_token(
+    req: FcmTokenRequest,
+    x_device_id: str | None = Header(default=None),
+) -> dict:
+    """Register/update this device's FCM push token. The target device is the
+    authenticated signer (X-Device-ID), so a device can only set its own token."""
+    if not x_device_id:
+        raise HTTPException(400, "missing X-Device-ID")
+    if not db.set_fcm_token(x_device_id, req.fcm_token or None):
         raise HTTPException(404, "device not found")
     return {"ok": True}
