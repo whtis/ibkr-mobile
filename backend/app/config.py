@@ -25,7 +25,12 @@ class Settings(BaseSettings):
     order_rate_limit_per_min: int = 10
 
     # --- Push notifications (FCM) ---
-    # Path to the Firebase service-account JSON. Empty disables push.
+    # Preferred path: a Cloudflare Worker relay that reaches Google for us (the
+    # NAS is behind the GFW). When fcm_relay_url is set, notify uses it.
+    fcm_relay_url: str = ""
+    fcm_relay_secret: str = ""
+    # Fallback: direct firebase-admin send (only works where Google is reachable).
+    # Path to the Firebase service-account JSON. Empty disables the direct path.
     fcm_service_account_path: str = ""
     # IB Gateway container name watched by the 2FA monitor (app/gateway_monitor.py).
     gateway_container: str = "ibkr-gateway"

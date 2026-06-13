@@ -51,7 +51,7 @@ async def run() -> None:
                     if now - last_notify < settings.twofa_notify_cooldown_s:
                         continue
                     last_notify = now
-                    res = notify.send_to_all(
+                    res = await notify.send_to_all(
                         title="IBKR 网关需要验证",
                         body="网关正在登录,请打开 IBKR Mobile 确认 IB Key 二次验证(约 3 分钟内)。",
                         data={"type": "gateway_2fa"},

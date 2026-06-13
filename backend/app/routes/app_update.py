@@ -65,7 +65,7 @@ async def latest() -> LatestRelease:
 @router.post("/test-push")
 async def test_push() -> dict:
     """Fire a test notification to all registered devices."""
-    res = notify.send_to_all(
+    res = await notify.send_to_all(
         title="IBKR 测试通知",
         body="推送通道工作正常 ✅",
         data={"type": "test"},

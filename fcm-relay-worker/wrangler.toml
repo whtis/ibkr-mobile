@@ -1,0 +1,16 @@
+name = "fcm-relay"
+main = "src/worker.js"
+compatibility_date = "2024-11-01"
+
+# Non-secret config. project_id is your Firebase project (see firebase-sa.json).
+[vars]
+FCM_PROJECT_ID = "bulltap"
+
+# Secrets are NOT in this file — set them with `wrangler secret put`:
+#   wrangler secret put FCM_CLIENT_EMAIL   # from firebase-sa.json "client_email"
+#   wrangler secret put FCM_PRIVATE_KEY    # from firebase-sa.json "private_key" (full PEM)
+#   wrangler secret put RELAY_SECRET       # any long random string; also goes in the backend .env
+
+# Put the Worker on your own Cloudflare domain so the NAS (in China) can reach it
+# reliably — *.workers.dev can be blocked. Uncomment and adjust:
+# routes = [{ pattern = "fcm.your-domain.com/*", zone_name = "your-domain.com" }]
