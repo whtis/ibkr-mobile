@@ -36,6 +36,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.tis.ibkr.IbkrApp
+import com.tis.ibkr.data.push.PushStatus
 import com.tis.ibkr.data.update.AppUpdater
 import com.tis.ibkr.ui.theme.LbColors
 import com.tis.ibkr.viewmodel.SettingsViewModel
@@ -252,6 +254,21 @@ fun SettingsScreen(vm: SettingsViewModel = viewModel()) {
         checkMsg?.let {
             Text(it, color = LbColors.OnSurfaceMuted, style = MaterialTheme.typography.bodySmall)
         }
+
+        val pushStatus by PushStatus.status.collectAsState()
+        Text(
+            "推送状态: $pushStatus",
+            color = LbColors.OnSurfaceMuted,
+            style = MaterialTheme.typography.bodySmall,
+        )
+        Button(
+            onClick = { IbkrApp.instance.registerPushToken() },
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = LbColors.SurfaceElevated,
+                contentColor = LbColors.OnSurface,
+            ),
+        ) { Text("重试注册推送") }
 
         Spacer(Modifier.height(8.dp))
 

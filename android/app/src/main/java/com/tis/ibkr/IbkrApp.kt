@@ -4,6 +4,7 @@ import android.app.Application
 import com.google.firebase.messaging.FirebaseMessaging
 import com.tis.ibkr.data.api.IbkrApi
 import com.tis.ibkr.data.push.PushNotifications
+import com.tis.ibkr.data.push.PushStatus
 import com.tis.ibkr.data.api.QuoteStream
 import com.tis.ibkr.data.db.AppDatabase
 import com.tis.ibkr.data.repo.TradingModeRepository
@@ -72,10 +73,19 @@ class IbkrApp : Application() {
         }
     }
 
-    private fun registerPushToken() {
-        FirebaseMessaging.getInstance().token.addOnSuccessListener { token ->
-            appScope.launch { runCatching { api.registerFcmToken(token) } }
-        }
+    fun registerPushToken() {
+        PushStatus.set("注册中…")
+        FirebaseMessaging.getInstance().token
+            .addOnSuccessListener { token ->
+                appScope.launch {
+                    runCatching { api.registerFcmToken(token) }
+                        .onSuccess { PushStatus.set("已注册 ✓ (${token.take(10)}…${token.takeLast(4)})") }
+                        .onFailure { PushStatus.set("注册POST失败: ${it.message ?: it::class.simpleName}") }
+                }
+            }
+            .addOnFailureListener { e ->
+                PushStatus.set("取FCM token失败: ${e.message ?: e::class.simpleName}")
+            }
     }
 
     companion object {
