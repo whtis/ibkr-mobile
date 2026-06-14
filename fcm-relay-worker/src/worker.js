@@ -17,6 +17,28 @@
 
 export default {
   async fetch(request, env) {
+    const url = new URL(request.url);
+
+    // Public APK proxy: GET /apk/<tag>/<file.apk> -> the GitHub release asset,
+    // cached at Cloudflare's edge. GitHub's release CDN is throttled from China;
+    // CF<->GitHub is fast and CF<->China is fine, so the phone downloads the full
+    // APK from here instead of timing out against GitHub directly.
+    if (request.method === "GET" && url.pathname.startsWith("/apk/")) {
+      const rest = url.pathname.slice("/apk/".length); // "<tag>/<file.apk>"
+      if (!rest || rest.includes("..") || !rest.endsWith(".apk")) {
+        return new Response("not found", { status: 404 });
+      }
+      const repo = env.APK_REPO || "whtis/ibkr-mobile";
+      const gh = `https://github.com/${repo}/releases/download/${rest}`;
+      const upstream = await fetch(gh, { cf: { cacheEverything: true, cacheTtl: 3600 } });
+      const headers = new Headers();
+      headers.set("Content-Type", "application/vnd.android.package-archive");
+      headers.set("Cache-Control", "public, max-age=3600");
+      const len = upstream.headers.get("Content-Length");
+      if (len) headers.set("Content-Length", len);
+      return new Response(upstream.body, { status: upstream.status, headers });
+    }
+
     if (request.method !== "POST") return json({ ok: false, error: "method-not-allowed" }, 405);
     if (env.RELAY_SECRET && request.headers.get("Authorization") !== `Bearer ${env.RELAY_SECRET}`) {
       return json({ ok: false, error: "unauthorized" }, 401);

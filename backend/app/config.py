@@ -42,6 +42,10 @@ class Settings(BaseSettings):
     github_repo: str = "whtis/ibkr-mobile"
     # Optional token for reading releases of a private repo (empty = public).
     github_token: str = ""
+    # If set, /app/latest rewrites the APK URL through this base (a Cloudflare
+    # Worker /apk proxy) so the phone downloads from CF instead of GitHub's
+    # China-throttled CDN. e.g. "https://fcm.your-domain.com".
+    apk_proxy_base: str = ""
 
 
 settings = Settings()
