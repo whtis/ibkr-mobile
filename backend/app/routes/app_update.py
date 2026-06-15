@@ -66,12 +66,6 @@ async def latest(channel: str = "stable") -> LatestRelease:
          if str(a.get("name", "")).endswith(".apk")),
         None,
     )
-    # Route the download through the Cloudflare proxy so the phone isn't stuck
-    # on GitHub's China-throttled release CDN (which truncates large APKs).
-    if apk and settings.apk_proxy_base:
-        marker = "/releases/download/"
-        if marker in apk:
-            apk = settings.apk_proxy_base.rstrip("/") + "/apk/" + apk.split(marker, 1)[1]
     return LatestRelease(
         version_name=tag[1:] if tag.startswith("v") else tag,
         notes=rel.get("body") or "",
