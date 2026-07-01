@@ -5,6 +5,7 @@ import io.ktor.client.plugins.api.createClientPlugin
 import io.ktor.client.request.header
 import io.ktor.http.HttpHeaders
 import io.ktor.http.content.OutgoingContent
+import io.ktor.http.content.TextContent
 import java.security.MessageDigest
 
 /**
@@ -39,6 +40,7 @@ val RequestSigning = createClientPlugin("RequestSigning", ::RequestSigningConfig
 
         val bodyBytes = when (val c = request.body) {
             is OutgoingContent.ByteArrayContent -> c.bytes()
+            is TextContent -> c.text.toByteArray(Charsets.UTF_8)
             else -> ByteArray(0)
         }
         val bodyHash = MessageDigest.getInstance("SHA-256").digest(bodyBytes)
