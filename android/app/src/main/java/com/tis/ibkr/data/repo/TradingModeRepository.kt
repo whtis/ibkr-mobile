@@ -10,11 +10,10 @@ enum class TradingMode { PAPER, LIVE, UNKNOWN }
 /**
  * Tracks whether the connected IBKR account is paper or live, derived from /health.
  *
- * UNKNOWN is the safer default for things like the top banner ("nothing shown"),
- * but for the order-confirm flow we treat UNKNOWN as PAPER — we already block
- * orders behind a token + qty/notional guards on the backend, and the user is
- * currently set up on a paper (DUQ*) account; forcing the live confirm dialog
- * when /health hasn't responded would just train muscle memory to dismiss it.
+ * UNKNOWN means /health hasn't responded (or reported no connection). Since the
+ * gateway may be connected to a live account, order submission treats UNKNOWN
+ * like LIVE: it requires an explicit confirmation instead of submitting directly.
+ * Only a confirmed PAPER mode skips the confirm dialog.
  */
 class TradingModeRepository(private val api: IbkrApi) {
 

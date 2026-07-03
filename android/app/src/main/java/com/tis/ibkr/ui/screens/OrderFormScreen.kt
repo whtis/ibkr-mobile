@@ -35,6 +35,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -91,8 +92,13 @@ fun OrderFormScreen(
     )
     val state by vm.state.collectAsState()
     val tradingMode by IbkrApp.instance.tradingMode.mode.collectAsState()
+    val accountId by IbkrApp.instance.tradingMode.accountId.collectAsState()
     val isLive = tradingMode == TradingMode.LIVE
     var showLiveConfirm by remember { mutableStateOf(false) }
+
+    // Re-check paper/live on entry: submit behavior depends on it, and the
+    // app-start /health snapshot may be stale (backend restarted or unreachable).
+    LaunchedEffect(Unit) { IbkrApp.instance.tradingMode.refresh() }
 
     var showPreview by remember { mutableStateOf(false) }
     val previewSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -104,7 +110,7 @@ fun OrderFormScreen(
             .verticalScroll(rememberScrollState()),
     ) {
         TopBarRow(state, onBack)
-        AccountBar()
+        AccountBar(tradingMode, accountId)
         SymbolPriceRow(state)
         DepthSplitBar(state)
         BboRow(state)
@@ -133,28 +139,42 @@ fun OrderFormScreen(
         SubmitBar(
             state = state,
             isLive = isLive,
-            onSubmit = { if (isLive) showLiveConfirm = true else vm.submit() },
+            onSubmit = {
+                // Only a confirmed PAPER account submits directly. LIVE and
+                // UNKNOWN (health unreachable — the backend may well be live)
+                // both require explicit confirmation.
+                if (tradingMode == TradingMode.PAPER) vm.submit() else showLiveConfirm = true
+            },
             onPreview = { showPreview = true },
         )
     }
 
-    // -- Live mode confirmation dialog. Only paths to vm.submit() in live mode
-    // go through this; paper-mode submit is direct (existing behavior).
+    // -- Live / unknown-mode confirmation dialog. Only a confirmed paper
+    // account submits without passing through this.
     if (showLiveConfirm) {
         AlertDialog(
             onDismissRequest = { showLiveConfirm = false },
             title = {
-                Text("⚠ 实盘下单确认", color = LbColors.Error, fontWeight = FontWeight.Bold)
+                Text(
+                    if (isLive) "⚠ 实盘下单确认" else "⚠ 交易模式未知",
+                    color = LbColors.Error,
+                    fontWeight = FontWeight.Bold,
+                )
             },
             text = {
                 val qty = state.quantityText.ifBlank { "?" }
                 val px = state.priceText.ifBlank { state.quote?.last?.toString() ?: "?" }
                 val amt = state.estimatedAmount?.let { "%.2f".format(it) } ?: "?"
                 val sideZh = if (state.side == "BUY") "买入" else "卖出"
+                val warning = if (isLive) {
+                    "这是实盘交易,资金真实流动,确认提交吗?"
+                } else {
+                    "无法确认当前是模拟还是实盘账户(健康检查未响应)。若后端连接的是实盘,资金将真实流动。确认提交吗?"
+                }
                 Text(
                     "$sideZh ${state.symbol} × $qty @ $px ${state.currency}\n" +
                     "估计金额 $amt ${state.currency}\n\n" +
-                    "这是实盘交易,资金真实流动,确认提交吗?",
+                    warning,
                     color = LbColors.OnSurface,
                 )
             },
@@ -168,7 +188,7 @@ fun OrderFormScreen(
                         containerColor = LbColors.Error,
                         contentColor = Color.White,
                     ),
-                ) { Text("确认实盘下单") }
+                ) { Text(if (isLive) "确认实盘下单" else "仍要提交") }
             },
             dismissButton = {
                 TextButton(onClick = { showLiveConfirm = false }) {
@@ -269,7 +289,12 @@ private fun TopBarRow(state: OrderFormUiState, onBack: () -> Unit) {
 }
 
 @Composable
-private fun AccountBar() {
+private fun AccountBar(mode: TradingMode, accountId: String?) {
+    val (label, dotColor) = when (mode) {
+        TradingMode.LIVE -> "IBKR 实盘账户" to LbColors.Error
+        TradingMode.PAPER -> "IBKR 模拟账户" to LbColors.Accent
+        TradingMode.UNKNOWN -> "IBKR 账户 · 状态未知" to LbColors.OnSurfaceMuted
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -280,12 +305,12 @@ private fun AccountBar() {
             modifier = Modifier
                 .size(20.dp)
                 .clip(RoundedCornerShape(10.dp))
-                .background(LbColors.Accent),
+                .background(dotColor),
         )
         Spacer(Modifier.width(8.dp))
         Text(
-            "IBKR 模拟账户 (DUQ096796)",
-            color = LbColors.OnSurface,
+            if (accountId != null) "$label ($accountId)" else label,
+            color = if (mode == TradingMode.LIVE) LbColors.Error else LbColors.OnSurface,
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Medium,
         )
